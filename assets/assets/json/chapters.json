@@ -1,0 +1,93 @@
+[
+  {
+    "id": 101,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "風險管理與保險",
+    "weight": "05%"
+  },
+  {
+    "id": 102,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "人身保險的意義與功能",
+    "weight": "05%"
+  },
+  {
+    "id": 103,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "我國人身保險事業的基本認識",
+    "weight": "10%"
+  },
+  {
+    "id": 104,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "人身保險的構造",
+    "weight": "30%"
+  },
+  {
+    "id": 105,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "人身保險的種類",
+    "weight": "20%"
+  },
+  {
+    "id": 106,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "投保實務與契約的選擇",
+    "weight": "05%"
+  },
+  {
+    "id": 107,
+    "courseId": 1,
+    "unitNo": 1,
+    "title": "壽險行銷活動",
+    "weight": "10%"
+  },
+  {
+    "id": 201,
+    "courseId": 2,
+    "unitNo": 2,
+    "title": "人身保險契約",
+    "weight": "10%"
+  },
+  {
+    "id": 202,
+    "courseId": 2,
+    "unitNo": 2,
+    "title": "人身保險契約條款",
+    "weight": "35%"
+  },
+  {
+    "id": 203,
+    "courseId": 2,
+    "unitNo": 2,
+    "title": "人身保險與稅法",
+    "weight": "20%"
+  },
+  {
+    "id": 204,
+    "courseId": 2,
+    "unitNo": 2,
+    "title": "保戶權益相關重要法律介紹",
+    "weight": "05%"
+  },
+  {
+    "id": 205,
+    "courseId": 2,
+    "unitNo": 2,
+    "title": "保險業務員管理規則的認識",
+    "weight": "10%"
+  },
+  {
+    "id": 301,
+    "courseId": 2,
+    "unitNo": 3,
+    "title": "附錄精選題庫",
+    "weight": "05%"
+  }
+]

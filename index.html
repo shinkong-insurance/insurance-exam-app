@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="人身保險業務員資格測驗學習 APP">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="保險考照">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- RWD viewport — adapts to mobile / tablet / desktop -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>保險考照 APP</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Prevent white flash while Flutter loads */
+    body {
+      background-color: #1a1a2e;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    /* Loading indicator */
+    #loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+      font-family: sans-serif;
+      color: #e0e0e0;
+    }
+    #loading .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: #7986cb;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <span>保險考照 APP 載入中…</span>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      const el = document.getElementById('loading');
+      if (el) el.remove();
+    });
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
