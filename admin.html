@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 — 保險考照 APP</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --card2: #22263a;
+    --border: #2e3250;
+    --text: #e2e8f0;
+    --muted: #7a8098;
+    --primary: #f97316;
+    --primary-h: #ea6408;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Login ── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .login-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px;
+  }
+  .login-card h1 { font-size: 20px; margin-bottom: 4px; }
+  .login-card p { color: var(--muted); margin-bottom: 28px; font-size: 13px; }
+
+  /* ── Dashboard ── */
+  #dashboard { display: none; }
+  .topbar {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .topbar h1 { font-size: 16px; font-weight: 700; }
+  .content { padding: 20px; max-width: 1000px; margin: 0 auto; }
+
+  /* ── Stats ── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat-card .num { font-size: 28px; font-weight: 800; color: var(--primary); }
+  .stat-card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* ── Table ── */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .panel-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .panel-header h2 { font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card2); text-align: left; padding: 10px 12px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 10px 12px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--success); }
+  .badge-red   { background: rgba(239,68,68,.15); color: var(--danger); }
+  .badge-warn  { background: rgba(245,158,11,.15); color: var(--warn); }
+
+  /* ── Forms ── */
+  .form-row { margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], input[type=email], input[type=password], input[type=date] {
+    width: 100%; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus { border-color: var(--primary); }
+
+  /* ── Buttons ── */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .2s; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-h); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--muted); }
+  .btn-danger { background: rgba(239,68,68,.15); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 100; display: none;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 440px; }
+  .modal h3 { font-size: 16px; margin-bottom: 20px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ── Misc ── */
+  .error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  .empty-row td { text-align: center; color: var(--muted); padding: 32px; }
+  .search-input { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 13px; outline: none; width: 220px; }
+  .search-input:focus { border-color: var(--primary); }
+  @media(max-width:600px){ .hide-sm { display:none; } th.hide-sm { display:none; } td.hide-sm { display:none; } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:56px;height:56px;background:var(--primary);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px">🛡️</div>
+      <h1>後台管理系統</h1>
+      <p>保險業務員資格測驗平台</p>
+    </div>
+    <div class="form-row">
+      <label>管理員 Email</label>
+      <input type="email" id="admin-email" value="admin@shinkong.edu.tw" autocomplete="username">
+    </div>
+    <div class="form-row">
+      <label>密碼</label>
+      <input type="password" id="admin-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="login-error"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px;justify-content:center;padding:12px" onclick="doLogin()" id="login-btn">登入後台</button>
+    <p style="color:var(--muted);font-size:11px;text-align:center;margin-top:16px">
+      若尚未設定管理員帳號，請至<br>
+      <a href="https://supabase.com/dashboard/project/kbclpucolchpwykqciyw/auth/users" target="_blank" style="color:var(--primary)">Supabase Dashboard → Authentication → Users</a><br>
+      建立帳號
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div id="dashboard">
+  <div class="topbar">
+    <h1>🛡️ 後台管理 — 保險考照</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="admin-label" style="color:var(--muted);font-size:12px"></span>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- Stats -->
+    <div class="stats" id="stats-row">
+      <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">總學員數</div></div>
+      <div class="stat-card"><div class="num" id="s-active">—</div><div class="lbl">授權有效</div></div>
+      <div class="stat-card"><div class="num" id="s-expired">—</div><div class="lbl">期限已到</div></div>
+      <div class="stat-card"><div class="num" id="s-logins">—</div><div class="lbl">累計登入</div></div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>學員授權管理</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 身分證" oninput="renderTable()">
+          <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ 新增學員</button>
+          <button class="btn btn-outline btn-sm" onclick="loadUsers()">重整</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>姓名</th>
+              <th>身分證號碼</th>
+              <th class="hide-sm">梯次</th>
+              <th class="hide-sm">到期日</th>
+              <th>狀態</th>
+              <th class="hide-sm">登入次數</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADD/EDIT MODAL ══════════════ -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <h3 id="modal-title">新增學員</h3>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <label>姓名 *</label>
+      <input type="text" id="f-name" placeholder="王小明">
+    </div>
+    <div class="form-row">
+      <label>身分證號碼 * <span style="color:var(--muted)">(大寫英文 + 9 位數字)</span></label>
+      <input type="text" id="f-national-id" placeholder="A123456789" maxlength="10" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="form-row">
+      <label>出生年月日 * <span style="color:var(--muted)">(供學員登入用)</span></label>
+      <input type="date" id="f-birth-date">
+    </div>
+    <div class="form-row">
+      <label>梯次名稱</label>
+      <input type="text" id="f-batch-name" placeholder="2026第一梯次">
+    </div>
+    <div class="form-row">
+      <label>授權到期日 *</label>
+      <input type="date" id="f-expires-at">
+    </div>
+    <div class="form-row">
+      <label>備註</label>
+      <input type="text" id="f-notes" placeholder="選填">
+    </div>
+    <div class="error-msg" id="modal-error"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()" id="save-btn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://kbclpucolchpwykqciyw.supabase.co';
+const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY2xwdWNvbGNocHd5a3FjaXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTcwMjAsImV4cCI6MjA5MDE3MzAyMH0.VFgoJuWa6UjT0Jyo6tKFwoSku-Z2B-Y-gEjRxDFRt4Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allUsers = [];
+
+// ── Auth ──────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass  = document.getElementById('admin-pass').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-error');
+  btn.disabled = true; btn.textContent = '登入中…';
+  err.textContent = '';
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = '登入後台';
+
+  if (error) { err.textContent = '登入失敗：' + error.message; return; }
+
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('admin-label').textContent = email;
+  loadUsers();
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-pass').value = '';
+}
+
+document.getElementById('admin-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// Auto-login if session exists
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('admin-label').textContent = session.user.email;
+    loadUsers();
+  }
+})();
+
+// ── Load Users ────────────────────────────────
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="7">載入中…</td></tr>';
+
+  const { data, error } = await sb
+    .from('web_users')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">載入失敗：${error.message}</td></tr>`;
+    return;
+  }
+
+  allUsers = data || [];
+  updateStats();
+  renderTable();
+}
+
+function updateStats() {
+  const now   = new Date();
+  const total  = allUsers.length;
+  const active = allUsers.filter(u => u.is_active && new Date(u.expires_at) > now).length;
+  const expired = allUsers.filter(u => u.is_active && new Date(u.expires_at) <= now).length;
+  const logins  = allUsers.reduce((s, u) => s + (u.login_count || 0), 0);
+  document.getElementById('s-total').textContent   = total;
+  document.getElementById('s-active').textContent  = active;
+  document.getElementById('s-expired').textContent = expired;
+  document.getElementById('s-logins').textContent  = logins;
+}
+
+function renderTable() {
+  const q = document.getElementById('search-box').value.toLowerCase();
+  const filtered = allUsers.filter(u =>
+    u.name?.toLowerCase().includes(q) ||
+    u.national_id?.toLowerCase().includes(q) ||
+    u.batch_name?.toLowerCase().includes(q)
+  );
+
+  const tbody = document.getElementById('users-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>';
+    return;
+  }
+
+  const now = new Date();
+  tbody.innerHTML = filtered.map(u => {
+    const exp    = new Date(u.expires_at);
+    const isExp  = exp <= now;
+    const daysLeft = Math.ceil((exp - now) / 86400000);
+    let statusBadge;
+    if (!u.is_active) {
+      statusBadge = '<span class="badge badge-red">已停用</span>';
+    } else if (isExp) {
+      statusBadge = '<span class="badge badge-warn">已到期</span>';
+    } else if (daysLeft <= 7) {
+      statusBadge = `<span class="badge badge-warn">剩 ${daysLeft} 天</span>`;
+    } else {
+      statusBadge = '<span class="badge badge-green">有效</span>';
+    }
+    const expStr = u.expires_at?.substring(0,10) ?? '—';
+    return `<tr>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td style="font-family:monospace">${esc(u.national_id)}</td>
+      <td class="hide-sm">${esc(u.batch_name || '—')}</td>
+      <td class="hide-sm">${expStr}</td>
+      <td>${statusBadge}</td>
+      <td class="hide-sm">${u.login_count || 0}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditModal('${u.id}')">編輯</button>
+        ${u.is_active
+          ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleActive('${u.id}',false)">停用</button>`
+          : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleActive('${u.id}',true)">啟用</button>`
+        }
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function esc(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Toggle Active ─────────────────────────────
+async function toggleActive(id, active) {
+  const { error } = await sb.from('web_users').update({ is_active: active }).eq('id', id);
+  if (error) { alert('操作失敗：' + error.message); return; }
+  loadUsers();
+}
+
+// ── Modal ─────────────────────────────────────
+function openAddModal() {
+  document.getElementById('modal-title').textContent = '新增學員';
+  document.getElementById('edit-id').value = '';
+  ['f-name','f-national-id','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-birth-date').value = '';
+  // default expires 6 months from now
+  const d = new Date(); d.setMonth(d.getMonth() + 6);
+  document.getElementById('f-expires-at').value = d.toISOString().substring(0,10);
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openEditModal(id) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('modal-title').textContent = '編輯學員';
+  document.getElementById('edit-id').value         = u.id;
+  document.getElementById('f-name').value          = u.name || '';
+  document.getElementById('f-national-id').value   = u.national_id || '';
+  document.getElementById('f-birth-date').value    = u.birth_date?.substring(0,10) || '';
+  document.getElementById('f-batch-name').value    = u.batch_name || '';
+  document.getElementById('f-expires-at').value    = u.expires_at?.substring(0,10) || '';
+  document.getElementById('f-notes').value         = u.notes || '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('user-modal').classList.remove('open');
+}
+
+document.getElementById('user-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+async function saveUser() {
+  const id         = document.getElementById('edit-id').value;
+  const name       = document.getElementById('f-name').value.trim();
+  const nationalId = document.getElementById('f-national-id').value.trim().toUpperCase();
+  const birthDate  = document.getElementById('f-birth-date').value;
+  const batchName  = document.getElementById('f-batch-name').value.trim();
+  const expiresAt  = document.getElementById('f-expires-at').value;
+  const notes      = document.getElementById('f-notes').value.trim();
+  const errEl      = document.getElementById('modal-error');
+
+  if (!name)       { errEl.textContent = '請輸入姓名'; return; }
+  if (!/^[A-Z][12][0-9]{8}$/.test(nationalId)) {
+    errEl.textContent = '身分證號碼格式不正確（首字大寫英文，第二碼 1 或 2，共 10 碼）';
+    return;
+  }
+  if (!birthDate)  { errEl.textContent = '請選擇出生年月日'; return; }
+  if (!expiresAt)  { errEl.textContent = '請選擇授權到期日'; return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  errEl.textContent = '';
+
+  const payload = { name, national_id: nationalId, birth_date: birthDate, batch_name: batchName || '一般學員', expires_at: expiresAt, notes: notes || null };
+
+  let error;
+  if (id) {
+    ({ error } = await sb.from('web_users').update(payload).eq('id', id));
+  } else {
+    payload.is_active = true;
+    ({ error } = await sb.from('web_users').insert(payload));
+  }
+
+  btn.disabled = false; btn.textContent = '儲存';
+  if (error) { errEl.textContent = '儲存失敗：' + error.message; return; }
+  closeModal();
+  loadUsers();
+}
+</script>
+</body>
+</html>
