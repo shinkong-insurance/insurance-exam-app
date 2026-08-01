@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 — 保險考照 APP</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d2e; --card2: #22263a; --border: #2e3250;
+    --text: #e2e8f0; --muted: #7a8098; --primary: #f97316; --primary-h: #ea6408;
+    --danger: #ef4444; --success: #22c55e; --warn: #f59e0b; --info: #3b82f6;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+  /* ── Login ── */
+  #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 40px 32px; width: 100%; max-width: 400px; }
+  .login-card h1 { font-size: 20px; margin-bottom: 4px; }
+  .login-card p { color: var(--muted); margin-bottom: 28px; font-size: 13px; }
+
+  /* ── Dashboard ── */
+  #dashboard { display: none; }
+  .topbar { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h1 { font-size: 16px; font-weight: 700; }
+
+  /* ── Tabs ── */
+  .tabs { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; gap: 0; }
+  .tab-btn { padding: 12px 20px; cursor: pointer; border: none; background: transparent; color: var(--muted); font-size: 14px; font-weight: 600; border-bottom: 2px solid transparent; transition: all .2s; }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-btn:hover:not(.active) { color: var(--text); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .content { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+  /* ── Stats ── */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
+  .stat-card .num { font-size: 28px; font-weight: 800; color: var(--primary); }
+  .stat-card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* ── Panel / Table ── */
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 24px; }
+  .panel-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .panel-header h2 { font-size: 15px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--card2); text-align: left; padding: 10px 12px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 10px 12px; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,.03); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--success); }
+  .badge-red   { background: rgba(239,68,68,.15); color: var(--danger); }
+  .badge-warn  { background: rgba(245,158,11,.15); color: var(--warn); }
+  .badge-info  { background: rgba(59,130,246,.15); color: var(--info); }
+
+  /* ── Forms ── */
+  .form-row { margin-bottom: 14px; }
+  .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  input[type=text], input[type=email], input[type=password], input[type=date], input[type=number], select, textarea {
+    width: 100%; background: var(--card2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 10px 12px; font-size: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* ── Buttons ── */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .2s; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: var(--primary-h); }
+  .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn-outline:hover { border-color: var(--muted); }
+  .btn-danger { background: rgba(239,68,68,.15); color: var(--danger); border: 1px solid rgba(239,68,68,.3); }
+  .btn-info   { background: rgba(59,130,246,.15); color: var(--info); border: 1px solid rgba(59,130,246,.3); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; display: none; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { font-size: 16px; margin-bottom: 20px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* ── Key Code display ── */
+  .key-code { font-family: monospace; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 13px; letter-spacing: 1px; cursor: pointer; user-select: all; }
+  .key-code:hover { border-color: var(--primary); }
+
+  /* ── Misc ── */
+  .error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 20px; }
+  .empty-row td { text-align: center; color: var(--muted); padding: 32px; }
+  .search-input { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 12px; font-size: 13px; outline: none; width: 220px; }
+  .search-input:focus { border-color: var(--primary); }
+  .tip { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .progress-bar { background: var(--card2); border-radius: 99px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 99px; background: var(--primary); transition: width .3s; }
+  @media(max-width:600px){ .hide-sm { display:none; } th.hide-sm { display:none; } td.hide-sm { display:none; } .form-row-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="width:56px;height:56px;background:var(--primary);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px">🛡️</div>
+      <h1>後台管理系統</h1>
+      <p>保險業務員資格測驗平台</p>
+    </div>
+    <div class="form-row">
+      <label>管理員 Email</label>
+      <input type="email" id="admin-email" value="admin@shinkong.edu.tw" autocomplete="username">
+    </div>
+    <div class="form-row">
+      <label>密碼</label>
+      <input type="password" id="admin-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="login-error"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:12px;justify-content:center;padding:12px" onclick="doLogin()" id="login-btn">登入後台</button>
+    <p style="color:var(--muted);font-size:11px;text-align:center;margin-top:16px">
+      若尚未設定管理員帳號，請至<br>
+      <a href="https://supabase.com/dashboard/project/kbclpucolchpwykqciyw/auth/users" target="_blank" style="color:var(--primary)">Supabase Dashboard → Authentication → Users</a><br>
+      建立帳號
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div id="dashboard">
+  <div class="topbar">
+    <h1>🛡️ 後台管理 — 保險考照</h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="admin-label" style="color:var(--muted);font-size:12px"></span>
+      <button class="btn btn-outline btn-sm" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <!-- ── Tabs ── -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('users')">📋 學員授權（身分證版）</button>
+    <button class="tab-btn" onclick="switchTab('keys')">🔑 授權碼管理（License Key 版）</button>
+  </div>
+
+  <!-- ══ Tab: 學員授權 ══ -->
+  <div id="tab-users" class="tab-panel active">
+    <div class="content">
+      <div class="stats" id="stats-row">
+        <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">總學員數</div></div>
+        <div class="stat-card"><div class="num" id="s-active">—</div><div class="lbl">授權有效</div></div>
+        <div class="stat-card"><div class="num" id="s-expired">—</div><div class="lbl">期限已到</div></div>
+        <div class="stat-card"><div class="num" id="s-logins">—</div><div class="lbl">累計登入</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>學員授權管理 <span style="color:var(--muted);font-size:12px;font-weight:400">（身分證 + 出生年月日 登入）</span></h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 身分證" oninput="renderTable()">
+            <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">＋ 新增學員</button>
+            <button class="btn btn-outline btn-sm" onclick="loadUsers()">重整</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th>身分證號碼</th>
+                <th class="hide-sm">梯次</th>
+                <th class="hide-sm">到期日</th>
+                <th>狀態</th>
+                <th class="hide-sm">登入次數</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Tab: 授權碼管理 ══ -->
+  <div id="tab-keys" class="tab-panel">
+    <div class="content">
+      <div class="stats" id="lk-stats-row">
+        <div class="stat-card"><div class="num" id="lk-total">—</div><div class="lbl">授權碼總數</div></div>
+        <div class="stat-card"><div class="num" id="lk-active">—</div><div class="lbl">有效中</div></div>
+        <div class="stat-card"><div class="num" id="lk-expired">—</div><div class="lbl">已到期</div></div>
+        <div class="stat-card"><div class="num" id="lk-uses">—</div><div class="lbl">累計使用次數</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>授權碼列表 <span style="color:var(--muted);font-size:12px;font-weight:400">（License Key 登入）</span></h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <input class="search-input" id="lk-search-box" placeholder="🔍 搜尋梯次 / 授權碼" oninput="renderKeysTable()">
+            <button class="btn btn-primary btn-sm" onclick="openAddKeyModal()">＋ 新增授權碼</button>
+            <button class="btn btn-info btn-sm" onclick="openBatchModal()">⚡ 批次產生</button>
+            <button class="btn btn-outline btn-sm" onclick="loadKeys()">重整</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>授權碼</th>
+                <th class="hide-sm">梯次</th>
+                <th class="hide-sm">到期日</th>
+                <th>使用量</th>
+                <th>狀態</th>
+                <th class="hide-sm">累計登入</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="keys-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: 新增/編輯 學員 ══ -->
+<div class="modal-overlay" id="user-modal">
+  <div class="modal">
+    <h3 id="user-modal-title">新增學員</h3>
+    <input type="hidden" id="edit-user-id">
+    <div class="form-row">
+      <label>姓名 *</label>
+      <input type="text" id="f-name" placeholder="王小明">
+    </div>
+    <div class="form-row">
+      <label>身分證號碼 * <span style="color:var(--muted)">(大寫英文 + 9 位數字)</span></label>
+      <input type="text" id="f-national-id" placeholder="A123456789" maxlength="10" oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="form-row">
+      <label>出生年月日 * <span style="color:var(--muted)">(供學員登入用)</span></label>
+      <input type="date" id="f-birth-date">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>梯次名稱</label>
+        <input type="text" id="f-batch-name" placeholder="2026第一梯次">
+      </div>
+      <div>
+        <label>授權到期日 *</label>
+        <input type="date" id="f-expires-at">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>備註</label>
+      <input type="text" id="f-notes" placeholder="選填">
+    </div>
+    <div class="error-msg" id="user-modal-error"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('user-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveUser()" id="save-user-btn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: 新增/編輯 授權碼 ══ -->
+<div class="modal-overlay" id="key-modal">
+  <div class="modal">
+    <h3 id="key-modal-title">新增授權碼</h3>
+    <input type="hidden" id="edit-key-id">
+    <div class="form-row">
+      <label>授權碼 * <span style="color:var(--muted)">(格式 SK-YYYY-XXXX-NNNN，留空自動產生)</span></label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="f-key-code" placeholder="SK-2026-ABCD-1234" style="font-family:monospace;letter-spacing:1px" oninput="this.value=this.value.toUpperCase()">
+        <button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="genKeyCode()">🎲 產生</button>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>梯次名稱 *</label>
+        <input type="text" id="f-key-batch" placeholder="2026第一梯次">
+      </div>
+      <div>
+        <label>授權到期日 *</label>
+        <input type="date" id="f-key-expires">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>使用上限 <span style="color:var(--muted)">(0=無限)</span></label>
+        <input type="number" id="f-key-max-uses" value="1" min="0">
+      </div>
+      <div style="display:flex;flex-direction:column;justify-content:flex-end">
+        <label style="margin-bottom:8px">
+          <input type="checkbox" id="f-key-active" checked> 立即啟用
+        </label>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>備註</label>
+      <textarea id="f-key-notes" placeholder="選填"></textarea>
+    </div>
+    <div class="error-msg" id="key-modal-error"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('key-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveKey()" id="save-key-btn">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: 批次產生授權碼 ══ -->
+<div class="modal-overlay" id="batch-modal">
+  <div class="modal">
+    <h3>⚡ 批次產生授權碼</h3>
+    <div class="form-row">
+      <label>梯次名稱 *</label>
+      <input type="text" id="b-batch-name" placeholder="2026第一梯次">
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>產生數量 *</label>
+        <input type="number" id="b-count" value="30" min="1" max="200">
+      </div>
+      <div>
+        <label>每碼使用上限 <span style="color:var(--muted)">(0=無限)</span></label>
+        <input type="number" id="b-max-uses" value="1" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>授權到期日 *</label>
+      <input type="date" id="b-expires">
+    </div>
+    <div id="b-progress" style="display:none;margin-top:16px">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:8px" id="b-status">準備中…</div>
+      <div class="progress-bar"><div class="progress-fill" id="b-progress-fill" style="width:0%"></div></div>
+    </div>
+    <div id="b-result" style="display:none;margin-top:16px;padding:12px;background:var(--card2);border-radius:8px;font-size:13px">
+      <div style="color:var(--success);font-weight:600;margin-bottom:8px" id="b-result-title"></div>
+      <div id="b-result-keys" style="font-family:monospace;line-height:1.8;color:var(--muted);max-height:160px;overflow-y:auto"></div>
+      <button class="btn btn-outline btn-sm" style="margin-top:10px" onclick="copyBatchKeys()">📋 複製全部</button>
+    </div>
+    <div class="error-msg" id="batch-modal-error"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('batch-modal')" id="batch-cancel-btn">取消</button>
+      <button class="btn btn-primary" onclick="doBatchGenerate()" id="batch-gen-btn">開始產生</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Modal: 使用記錄 ══ -->
+<div class="modal-overlay" id="usage-modal">
+  <div class="modal" style="max-width:560px">
+    <h3 id="usage-modal-title">使用記錄</h3>
+    <div id="usage-modal-body" style="max-height:400px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('usage-modal')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://kbclpucolchpwykqciyw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY2xwdWNvbGNocHd5a3FjaXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTcwMjAsImV4cCI6MjA5MDE3MzAyMH0.VFgoJuWa6UjT0Jyo6tKFwoSku-Z2B-Y-gEjRxDFRt4Y';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let allUsers = [], allKeys = [];
+let batchGenKeys = [];
+
+// ══════════════════════════════════════════════
+// Auth
+// ══════════════════════════════════════════════
+async function doLogin() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass  = document.getElementById('admin-pass').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('login-error');
+  btn.disabled = true; btn.textContent = '登入中…'; err.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = '登入後台';
+  if (error) { err.textContent = '登入失敗：' + error.message; return; }
+  showDashboard(email);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('admin-pass').value = '';
+}
+
+function showDashboard(email) {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('admin-label').textContent = email;
+  loadUsers(); loadKeys();
+}
+
+document.getElementById('admin-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) showDashboard(session.user.email);
+})();
+
+// ══════════════════════════════════════════════
+// Tab switching
+// ══════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const t = ['users','keys'][i];
+    b.classList.toggle('active', t === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+// Users (Tab 1)
+// ══════════════════════════════════════════════
+async function loadUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="7">載入中…</td></tr>';
+  const { data, error } = await sb.from('web_users').select('*').order('created_at', { ascending: false });
+  if (error) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">載入失敗：${error.message}</td></tr>`; return; }
+  allUsers = data || [];
+  updateUserStats(); renderTable();
+}
+
+function updateUserStats() {
+  const now = new Date();
+  document.getElementById('s-total').textContent   = allUsers.length;
+  document.getElementById('s-active').textContent  = allUsers.filter(u => u.is_active && new Date(u.expires_at) > now).length;
+  document.getElementById('s-expired').textContent = allUsers.filter(u => u.is_active && new Date(u.expires_at) <= now).length;
+  document.getElementById('s-logins').textContent  = allUsers.reduce((s,u) => s + (u.login_count||0), 0);
+}
+
+function renderTable() {
+  const q = document.getElementById('search-box').value.toLowerCase();
+  const filtered = allUsers.filter(u =>
+    u.name?.toLowerCase().includes(q) || u.national_id?.toLowerCase().includes(q) || u.batch_name?.toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('users-tbody');
+  if (!filtered.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>'; return; }
+  const now = new Date();
+  tbody.innerHTML = filtered.map(u => {
+    const exp = new Date(u.expires_at);
+    const isExp = exp <= now;
+    const daysLeft = Math.ceil((exp - now) / 86400000);
+    let badge;
+    if (!u.is_active) badge = '<span class="badge badge-red">已停用</span>';
+    else if (isExp)   badge = '<span class="badge badge-warn">已到期</span>';
+    else if (daysLeft <= 7) badge = `<span class="badge badge-warn">剩 ${daysLeft} 天</span>`;
+    else badge = '<span class="badge badge-green">有效</span>';
+    return `<tr>
+      <td><strong>${esc(u.name)}</strong></td>
+      <td style="font-family:monospace">${esc(u.national_id)}</td>
+      <td class="hide-sm">${esc(u.batch_name||'—')}</td>
+      <td class="hide-sm">${u.expires_at?.substring(0,10)||'—'}</td>
+      <td>${badge}</td>
+      <td class="hide-sm">${u.login_count||0}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditUserModal('${u.id}')">編輯</button>
+        ${u.is_active
+          ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleUser('${u.id}',false)">停用</button>`
+          : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleUser('${u.id}',true)">啟用</button>`
+        }
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleUser(id, active) {
+  const { error } = await sb.from('web_users').update({ is_active: active }).eq('id', id);
+  if (error) { alert('操作失敗：' + error.message); return; }
+  loadUsers();
+}
+
+function openAddUserModal() {
+  document.getElementById('user-modal-title').textContent = '新增學員';
+  document.getElementById('edit-user-id').value = '';
+  ['f-name','f-national-id','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-birth-date').value = '';
+  const d = new Date(); d.setMonth(d.getMonth() + 6);
+  document.getElementById('f-expires-at').value = d.toISOString().substring(0,10);
+  document.getElementById('user-modal-error').textContent = '';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+function openEditUserModal(id) {
+  const u = allUsers.find(x => x.id === id);
+  if (!u) return;
+  document.getElementById('user-modal-title').textContent = '編輯學員';
+  document.getElementById('edit-user-id').value         = u.id;
+  document.getElementById('f-name').value               = u.name || '';
+  document.getElementById('f-national-id').value        = u.national_id || '';
+  document.getElementById('f-birth-date').value         = u.birth_date?.substring(0,10) || '';
+  document.getElementById('f-batch-name').value         = u.batch_name || '';
+  document.getElementById('f-expires-at').value         = u.expires_at?.substring(0,10) || '';
+  document.getElementById('f-notes').value              = u.notes || '';
+  document.getElementById('user-modal-error').textContent = '';
+  document.getElementById('user-modal').classList.add('open');
+}
+
+async function saveUser() {
+  const id       = document.getElementById('edit-user-id').value;
+  const name     = document.getElementById('f-name').value.trim();
+  const natId    = document.getElementById('f-national-id').value.trim().toUpperCase();
+  const birth    = document.getElementById('f-birth-date').value;
+  const batch    = document.getElementById('f-batch-name').value.trim();
+  const expires  = document.getElementById('f-expires-at').value;
+  const notes    = document.getElementById('f-notes').value.trim();
+  const errEl    = document.getElementById('user-modal-error');
+  if (!name)       { errEl.textContent = '請輸入姓名'; return; }
+  if (!/^[A-Z][12][0-9]{8}$/.test(natId)) { errEl.textContent = '身分證號碼格式不正確'; return; }
+  if (!birth)      { errEl.textContent = '請選擇出生年月日'; return; }
+  if (!expires)    { errEl.textContent = '請選擇授權到期日'; return; }
+  const btn = document.getElementById('save-user-btn');
+  btn.disabled = true; btn.textContent = '儲存中…'; errEl.textContent = '';
+  const payload = { name, national_id: natId, birth_date: birth, batch_name: batch||'一般學員', expires_at: expires, notes: notes||null };
+  let error;
+  if (id) { ({ error } = await sb.from('web_users').update(payload).eq('id', id)); }
+  else    { payload.is_active = true; ({ error } = await sb.from('web_users').insert(payload)); }
+  btn.disabled = false; btn.textContent = '儲存';
+  if (error) { errEl.textContent = '儲存失敗：' + error.message; return; }
+  closeModal('user-modal'); loadUsers();
+}
+
+// ══════════════════════════════════════════════
+// License Keys (Tab 2)
+// ══════════════════════════════════════════════
+async function loadKeys() {
+  const tbody = document.getElementById('keys-tbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="7">載入中…</td></tr>';
+  const { data, error } = await sb.from('license_keys').select('*').order('created_at', { ascending: false });
+  if (error) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">載入失敗：${error.message}</td></tr>`; return; }
+  allKeys = data || [];
+  updateKeyStats(); renderKeysTable();
+}
+
+function updateKeyStats() {
+  const now = new Date();
+  document.getElementById('lk-total').textContent   = allKeys.length;
+  document.getElementById('lk-active').textContent  = allKeys.filter(k => k.is_active && new Date(k.expires_at) > now).length;
+  document.getElementById('lk-expired').textContent = allKeys.filter(k => k.is_active && new Date(k.expires_at) <= now).length;
+  document.getElementById('lk-uses').textContent    = allKeys.reduce((s,k) => s + (k.used_count||0), 0);
+}
+
+function renderKeysTable() {
+  const q = document.getElementById('lk-search-box').value.toLowerCase();
+  const filtered = allKeys.filter(k =>
+    k.key_code?.toLowerCase().includes(q) || k.batch_name?.toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('keys-tbody');
+  if (!filtered.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>'; return; }
+  const now = new Date();
+  tbody.innerHTML = filtered.map(k => {
+    const exp = new Date(k.expires_at);
+    const isExp = exp <= now;
+    const daysLeft = Math.ceil((exp - now) / 86400000);
+    let badge;
+    if (!k.is_active) badge = '<span class="badge badge-red">已停用</span>';
+    else if (isExp)   badge = '<span class="badge badge-warn">已到期</span>';
+    else if (daysLeft <= 7) badge = `<span class="badge badge-warn">剩 ${daysLeft} 天</span>`;
+    else badge = '<span class="badge badge-green">有效</span>';
+
+    const maxStr = k.max_uses === 0 ? '∞' : k.max_uses;
+    const pct = k.max_uses === 0 ? 0 : Math.min(100, Math.round((k.used_count / k.max_uses) * 100));
+    const usageBar = k.max_uses > 0
+      ? `<div class="progress-bar" style="margin-top:4px;width:80px"><div class="progress-fill" style="width:${pct}%"></div></div>`
+      : '';
+
+    return `<tr>
+      <td>
+        <span class="key-code" onclick="copyText('${esc(k.key_code)}')" title="點擊複製">${esc(k.key_code)}</span>
+      </td>
+      <td class="hide-sm">${esc(k.batch_name||'—')}</td>
+      <td class="hide-sm">${k.expires_at?.substring(0,10)||'—'}</td>
+      <td>
+        <span style="font-size:12px">${k.used_count} / ${maxStr}</span>
+        ${usageBar}
+      </td>
+      <td>${badge}</td>
+      <td class="hide-sm">
+        <button class="btn btn-info btn-sm" onclick="showUsage('${k.id}','${esc(k.key_code)}')">詳情</button>
+      </td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="openEditKeyModal('${k.id}')">編輯</button>
+        ${k.is_active
+          ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',false)">停用</button>`
+          : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',true)">啟用</button>`
+        }
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function genKeyCode() {
+  const year = new Date().getFullYear();
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const rand4a = Array.from({length:4}, () => alpha[Math.floor(Math.random()*alpha.length)]).join('');
+  const rand4n = String(Math.floor(Math.random() * 10000)).padStart(4,'0');
+  document.getElementById('f-key-code').value = `SK-${year}-${rand4a}-${rand4n}`;
+}
+
+function openAddKeyModal() {
+  document.getElementById('key-modal-title').textContent = '新增授權碼';
+  document.getElementById('edit-key-id').value = '';
+  document.getElementById('f-key-code').value = '';
+  document.getElementById('f-key-batch').value = '';
+  document.getElementById('f-key-notes').value = '';
+  document.getElementById('f-key-max-uses').value = '1';
+  document.getElementById('f-key-active').checked = true;
+  const d = new Date(); d.setMonth(d.getMonth() + 3);
+  document.getElementById('f-key-expires').value = d.toISOString().substring(0,10);
+  document.getElementById('key-modal-error').textContent = '';
+  genKeyCode();
+  document.getElementById('key-modal').classList.add('open');
+}
+
+function openEditKeyModal(id) {
+  const k = allKeys.find(x => x.id === id);
+  if (!k) return;
+  document.getElementById('key-modal-title').textContent = '編輯授權碼';
+  document.getElementById('edit-key-id').value        = k.id;
+  document.getElementById('f-key-code').value         = k.key_code || '';
+  document.getElementById('f-key-batch').value        = k.batch_name || '';
+  document.getElementById('f-key-expires').value      = k.expires_at?.substring(0,10) || '';
+  document.getElementById('f-key-max-uses').value     = k.max_uses ?? 1;
+  document.getElementById('f-key-active').checked     = k.is_active !== false;
+  document.getElementById('f-key-notes').value        = k.notes || '';
+  document.getElementById('key-modal-error').textContent = '';
+  document.getElementById('key-modal').classList.add('open');
+}
+
+async function saveKey() {
+  const id      = document.getElementById('edit-key-id').value;
+  const code    = document.getElementById('f-key-code').value.trim().toUpperCase();
+  const batch   = document.getElementById('f-key-batch').value.trim();
+  const expires = document.getElementById('f-key-expires').value;
+  const maxUses = parseInt(document.getElementById('f-key-max-uses').value) || 0;
+  const active  = document.getElementById('f-key-active').checked;
+  const notes   = document.getElementById('f-key-notes').value.trim();
+  const errEl   = document.getElementById('key-modal-error');
+
+  if (!code)    { errEl.textContent = '請輸入授權碼'; return; }
+  if (!/^SK-\d{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+    errEl.textContent = '格式須為 SK-YYYY-XXXX-NNNN（如 SK-2026-ABCD-1234）';
+    return;
+  }
+  if (!batch)   { errEl.textContent = '請輸入梯次名稱'; return; }
+  if (!expires) { errEl.textContent = '請選擇到期日'; return; }
+
+  const btn = document.getElementById('save-key-btn');
+  btn.disabled = true; btn.textContent = '儲存中…'; errEl.textContent = '';
+
+  const payload = { key_code: code, batch_name: batch, expires_at: expires, max_uses: maxUses, is_active: active, notes: notes||null };
+  let error;
+  if (id) { ({ error } = await sb.from('license_keys').update(payload).eq('id', id)); }
+  else    { ({ error } = await sb.from('license_keys').insert(payload)); }
+
+  btn.disabled = false; btn.textContent = '儲存';
+  if (error) { errEl.textContent = '儲存失敗：' + (error.message.includes('23505') ? '此授權碼已存在' : error.message); return; }
+  closeModal('key-modal'); loadKeys();
+}
+
+async function toggleKey(id, active) {
+  const { error } = await sb.from('license_keys').update({ is_active: active }).eq('id', id);
+  if (error) { alert('操作失敗：' + error.message); return; }
+  loadKeys();
+}
+
+// ══════════════════════════════════════════════
+// Batch Generate
+// ══════════════════════════════════════════════
+function openBatchModal() {
+  document.getElementById('b-batch-name').value = '';
+  document.getElementById('b-count').value = '30';
+  document.getElementById('b-max-uses').value = '1';
+  const d = new Date(); d.setMonth(d.getMonth() + 3);
+  document.getElementById('b-expires').value = d.toISOString().substring(0,10);
+  document.getElementById('b-progress').style.display = 'none';
+  document.getElementById('b-result').style.display = 'none';
+  document.getElementById('batch-modal-error').textContent = '';
+  document.getElementById('batch-gen-btn').disabled = false;
+  document.getElementById('batch-gen-btn').textContent = '開始產生';
+  document.getElementById('batch-cancel-btn').textContent = '取消';
+  batchGenKeys = [];
+  document.getElementById('batch-modal').classList.add('open');
+}
+
+function randomKeyCode() {
+  const year = new Date().getFullYear();
+  const alpha = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const rand4a = Array.from({length:4}, () => alpha[Math.floor(Math.random()*alpha.length)]).join('');
+  const rand4n = String(Math.floor(Math.random() * 10000)).padStart(4,'0');
+  return `SK-${year}-${rand4a}-${rand4n}`;
+}
+
+async function doBatchGenerate() {
+  const batch   = document.getElementById('b-batch-name').value.trim();
+  const count   = parseInt(document.getElementById('b-count').value) || 0;
+  const maxUses = parseInt(document.getElementById('b-max-uses').value) || 0;
+  const expires = document.getElementById('b-expires').value;
+  const errEl   = document.getElementById('batch-modal-error');
+
+  if (!batch)         { errEl.textContent = '請輸入梯次名稱'; return; }
+  if (count < 1 || count > 200) { errEl.textContent = '數量須介於 1 ~ 200'; return; }
+  if (!expires)       { errEl.textContent = '請選擇到期日'; return; }
+
+  errEl.textContent = '';
+  document.getElementById('batch-gen-btn').disabled = true;
+  document.getElementById('b-progress').style.display = 'block';
+  document.getElementById('b-result').style.display = 'none';
+  batchGenKeys = [];
+
+  // Generate unique codes
+  const codes = new Set();
+  const existing = new Set(allKeys.map(k => k.key_code));
+  while (codes.size < count) {
+    const c = randomKeyCode();
+    if (!existing.has(c) && !codes.has(c)) codes.add(c);
+  }
+
+  const rows = [...codes].map(code => ({
+    key_code: code, batch_name: batch, expires_at: expires, max_uses: maxUses, is_active: true
+  }));
+
+  // Insert in chunks of 50
+  const chunkSize = 50;
+  let inserted = 0;
+  const statusEl = document.getElementById('b-status');
+  const fillEl   = document.getElementById('b-progress-fill');
+
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { data, error } = await sb.from('license_keys').insert(chunk).select('key_code');
+    if (error) { errEl.textContent = '寫入失敗：' + error.message; document.getElementById('batch-gen-btn').disabled = false; return; }
+    inserted += chunk.length;
+    batchGenKeys.push(...(data||[]).map(r => r.key_code));
+    const pct = Math.round((inserted / count) * 100);
+    statusEl.textContent = `已產生 ${inserted} / ${count}…`;
+    fillEl.style.width = pct + '%';
+  }
+
+  // Show result
+  statusEl.textContent = `✅ 完成！共產生 ${inserted} 組授權碼`;
+  fillEl.style.width = '100%';
+  document.getElementById('b-result').style.display = 'block';
+  document.getElementById('b-result-title').textContent = `${batch} 授權碼 × ${inserted}`;
+  document.getElementById('b-result-keys').innerHTML = batchGenKeys.map(c => `<div>${c}</div>`).join('');
+  document.getElementById('batch-cancel-btn').textContent = '關閉';
+  document.getElementById('batch-gen-btn').disabled = true;
+  loadKeys();
+}
+
+function copyBatchKeys() {
+  navigator.clipboard.writeText(batchGenKeys.join('\n')).then(() => alert('已複製 ' + batchGenKeys.length + ' 組授權碼！'));
+}
+
+// ══════════════════════════════════════════════
+// Usage Detail
+// ══════════════════════════════════════════════
+async function showUsage(keyId, keyCode) {
+  document.getElementById('usage-modal-title').textContent = '使用記錄：' + keyCode;
+  document.getElementById('usage-modal-body').innerHTML = '<p style="color:var(--muted);padding:16px">載入中…</p>';
+  document.getElementById('usage-modal').classList.add('open');
+
+  const [sessRes, favRes, wrongRes] = await Promise.all([
+    sb.from('key_sessions').select('*').eq('key_id', keyId).order('last_used_at', { ascending: false }),
+    sb.from('key_favorites').select('count', { count: 'exact', head: true }).eq('key_id', keyId),
+    sb.from('key_wrong_answers').select('count', { count: 'exact', head: true }).eq('key_id', keyId),
+  ]);
+
+  const sessions  = sessRes.data || [];
+  const favCount  = favRes.count || 0;
+  const wrongCount = wrongRes.count || 0;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="stat-card"><div class="num" style="font-size:20px">${sessions.length}</div><div class="lbl">裝置數</div></div>
+      <div class="stat-card"><div class="num" style="font-size:20px">${favCount}</div><div class="lbl">收藏題數</div></div>
+      <div class="stat-card"><div class="num" style="font-size:20px">${wrongCount}</div><div class="lbl">錯題數</div></div>
+    </div>`;
+
+  if (!sessions.length) {
+    html += '<p style="color:var(--muted);text-align:center;padding:16px">尚無使用記錄</p>';
+  } else {
+    html += `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr style="background:var(--card2)">
+        <th style="padding:8px;text-align:left;color:var(--muted);font-size:11px">裝置 ID</th>
+        <th style="padding:8px;text-align:right;color:var(--muted);font-size:11px">登入次數</th>
+        <th style="padding:8px;text-align:right;color:var(--muted);font-size:11px">最後登入</th>
+      </tr>`;
+    sessions.forEach(s => {
+      const lastAt = s.last_used_at ? new Date(s.last_used_at).toLocaleString('zh-TW', { hour12: false }) : '—';
+      html += `<tr>
+        <td style="padding:8px;border-top:1px solid var(--border);font-family:monospace;font-size:11px;color:var(--muted)">${s.device_id?.substring(0,16)}…</td>
+        <td style="padding:8px;border-top:1px solid var(--border);text-align:right">${s.login_count}</td>
+        <td style="padding:8px;border-top:1px solid var(--border);text-align:right;font-size:11px;color:var(--muted)">${lastAt}</td>
+      </tr>`;
+    });
+    html += '</table>';
+  }
+  document.getElementById('usage-modal-body').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+function esc(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    // brief flash
+    const sel = window.getSelection();
+  });
+}
+</script>
+</body>
+</html>
