@@ -7,6 +7,10 @@ class AppTheme {
     colorScheme: ColorScheme.fromSeed(
       seedColor: const Color(0xFF1976D2),
       brightness: Brightness.dark,
+    ).copyWith(
+      onSurface: Colors.white,
+      onBackground: Colors.white,
+      onTertiaryContainer: const Color(0xFFEEEEEE),
     ),
     cardTheme: const CardThemeData(
       elevation: 2,

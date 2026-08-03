@@ -195,7 +195,7 @@ class _SectionReadingPageState extends ConsumerState<SectionReadingPage> {
                                     ? Theme.of(context)
                                         .colorScheme
                                         .onPrimaryContainer
-                                    : null,
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -391,6 +391,7 @@ class _SectionReadingPageState extends ConsumerState<SectionReadingPage> {
       fontSize: _fontSize,
       height: 1.7,
       fontWeight: level == 0 ? FontWeight.w500 : FontWeight.normal,
+      color: Theme.of(context).colorScheme.onSurface,
     );
     return Padding(
       padding: EdgeInsets.only(
