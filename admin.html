@@ -141,25 +141,25 @@
 
   <!-- ── Tabs ── -->
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('users')">📋 學員授權（身分證版）</button>
+    <button class="tab-btn active" onclick="switchTab('users')">👥 學員管理</button>
     <button class="tab-btn" onclick="switchTab('keys')">🔑 授權碼管理（License Key 版）</button>
   </div>
 
-  <!-- ══ Tab: 學員授權 ══ -->
+  <!-- ══ Tab: 學員管理 ══ -->
   <div id="tab-users" class="tab-panel active">
     <div class="content">
       <div class="stats" id="stats-row">
         <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">總學員數</div></div>
-        <div class="stat-card"><div class="num" id="s-active">—</div><div class="lbl">授權有效</div></div>
-        <div class="stat-card"><div class="num" id="s-expired">—</div><div class="lbl">期限已到</div></div>
-        <div class="stat-card"><div class="num" id="s-logins">—</div><div class="lbl">累計登入</div></div>
+        <div class="stat-card"><div class="num" id="s-active">—</div><div class="lbl">已分配授權碼</div></div>
+        <div class="stat-card"><div class="num" id="s-expired">—</div><div class="lbl">未分配授權碼</div></div>
+        <div class="stat-card"><div class="num" id="s-logins">—</div><div class="lbl">已寄送郵件</div></div>
       </div>
 
       <div class="panel">
         <div class="panel-header">
-          <h2>學員授權管理 <span style="color:var(--muted);font-size:12px;font-weight:400">（身分證 + 出生年月日 登入）</span></h2>
+          <h2>學員管理 <span style="color:var(--muted);font-size:12px;font-weight:400">（授權碼 + 信箱 對應）</span></h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 身分證" oninput="renderTable()">
+            <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 區部 / 單位" oninput="renderTable()">
             <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">＋ 新增學員</button>
             <button class="btn btn-outline btn-sm" onclick="loadUsers()">重整</button>
           </div>
@@ -168,12 +168,15 @@
           <table>
             <thead>
               <tr>
+                <th class="hide-sm">區部</th>
+                <th class="hide-sm">單位</th>
                 <th>姓名</th>
-                <th>身分證號碼</th>
+                <th class="hide-sm">信箱</th>
                 <th class="hide-sm">梯次</th>
+                <th>授權碼</th>
                 <th class="hide-sm">到期日</th>
                 <th>狀態</th>
-                <th class="hide-sm">登入次數</th>
+                <th>寄送</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -230,17 +233,25 @@
   <div class="modal">
     <h3 id="user-modal-title">新增學員</h3>
     <input type="hidden" id="edit-user-id">
-    <div class="form-row">
-      <label>姓名 *</label>
-      <input type="text" id="f-name" placeholder="王小明">
+    <div class="form-row-2">
+      <div>
+        <label>區部</label>
+        <input type="text" id="f-region" placeholder="例：台北區部">
+      </div>
+      <div>
+        <label>單位</label>
+        <input type="text" id="f-unit" placeholder="例：忠孝通訊處">
+      </div>
     </div>
-    <div class="form-row">
-      <label>身分證號碼 * <span style="color:var(--muted)">(大寫英文 + 9 位數字)</span></label>
-      <input type="text" id="f-national-id" placeholder="A123456789" maxlength="10" oninput="this.value=this.value.toUpperCase()">
-    </div>
-    <div class="form-row">
-      <label>出生年月日 * <span style="color:var(--muted)">(供學員登入用)</span></label>
-      <input type="date" id="f-birth-date">
+    <div class="form-row-2">
+      <div>
+        <label>姓名 *</label>
+        <input type="text" id="f-name" placeholder="王小明">
+      </div>
+      <div>
+        <label>信箱</label>
+        <input type="email" id="f-email" placeholder="example@email.com">
+      </div>
     </div>
     <div class="form-row-2">
       <div>
@@ -248,9 +259,15 @@
         <input type="text" id="f-batch-name" placeholder="2026第一梯次">
       </div>
       <div>
-        <label>授權到期日 *</label>
+        <label>授權到期日</label>
         <input type="date" id="f-expires-at">
       </div>
+    </div>
+    <div class="form-row">
+      <label>指定授權碼 <span style="color:var(--muted)">(留空則從可用授權碼中自動分配)</span></label>
+      <select id="f-key-select" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 12px;font-size:13px;width:100%">
+        <option value="">— 自動分配 —</option>
+      </select>
     </div>
     <div class="form-row">
       <label>備註</label>
@@ -364,7 +381,7 @@ const SUPABASE_URL = 'https://kbclpucolchpwykqciyw.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY2xwdWNvbGNocHd5a3FjaXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTcwMjAsImV4cCI6MjA5MDE3MzAyMH0.VFgoJuWa6UjT0Jyo6tKFwoSku-Z2B-Y-gEjRxDFRt4Y';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let allUsers = [], allKeys = [];
+let allStudents = [], allUsers = [], allKeys = [];
 let batchGenKeys = [];
 
 // ══════════════════════════════════════════════
@@ -396,6 +413,31 @@ function showDashboard(email) {
   loadUsers(); loadKeys();
 }
 
+// Shared: load available (unassigned) license keys for dropdown
+async function loadAvailableKeys(currentKeyId) {
+  const assignedRes = await sb.from('students').select('key_id').not('key_id', 'is', null);
+  const assignedIds = new Set((assignedRes.data || []).map(r => r.key_id).filter(id => id !== currentKeyId));
+  const { data: keys } = await sb.from('license_keys')
+    .select('id, key_code, batch_name, expires_at')
+    .eq('is_active', true)
+    .order('batch_name');
+  return (keys || []).filter(k => !assignedIds.has(k.id));
+}
+
+async function populateKeyDropdown(currentKeyId) {
+  const sel = document.getElementById('f-key-select');
+  // Clear existing options
+  while (sel.options.length > 1) sel.remove(1);
+  const available = await loadAvailableKeys(currentKeyId);
+  available.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k.id;
+    opt.textContent = k.key_code + '（' + (k.batch_name || '無梯次') + '，到期 ' + (k.expires_at?.substring(0,10) || '—') + '）';
+    sel.appendChild(opt);
+  });
+  if (currentKeyId) sel.value = currentKeyId;
+}
+
 document.getElementById('admin-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
 (async () => {
@@ -416,111 +458,299 @@ function switchTab(name) {
 }
 
 // ══════════════════════════════════════════════
-// Users (Tab 1)
+// Students (Tab 1 — 學員管理)
 // ══════════════════════════════════════════════
 async function loadUsers() {
   const tbody = document.getElementById('users-tbody');
-  tbody.innerHTML = '<tr class="empty-row"><td colspan="7">載入中…</td></tr>';
-  const { data, error } = await sb.from('web_users').select('*').order('created_at', { ascending: false });
-  if (error) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">載入失敗：${error.message}</td></tr>`; return; }
-  allUsers = data || [];
+  const emptyRow = document.createElement('tr');
+  emptyRow.className = 'empty-row';
+  const emptyCell = document.createElement('td');
+  emptyCell.setAttribute('colspan', '10');
+  emptyCell.textContent = '載入中…';
+  emptyRow.appendChild(emptyCell);
+  tbody.replaceChildren(emptyRow);
+
+  const { data, error } = await sb.from('students').select('*').order('created_at', { ascending: false });
+  if (error) {
+    const errRow = document.createElement('tr');
+    errRow.className = 'empty-row';
+    const errCell = document.createElement('td');
+    errCell.setAttribute('colspan', '10');
+    errCell.style.color = 'var(--danger)';
+    errCell.textContent = '載入失敗：' + error.message;
+    errRow.appendChild(errCell);
+    tbody.replaceChildren(errRow);
+    return;
+  }
+  allStudents = data || [];
   updateUserStats(); renderTable();
 }
 
 function updateUserStats() {
-  const now = new Date();
-  document.getElementById('s-total').textContent   = allUsers.length;
-  document.getElementById('s-active').textContent  = allUsers.filter(u => u.is_active && new Date(u.expires_at) > now).length;
-  document.getElementById('s-expired').textContent = allUsers.filter(u => u.is_active && new Date(u.expires_at) <= now).length;
-  document.getElementById('s-logins').textContent  = allUsers.reduce((s,u) => s + (u.login_count||0), 0);
+  document.getElementById('s-total').textContent   = allStudents.length;
+  document.getElementById('s-active').textContent  = allStudents.filter(s => s.key_code).length;
+  document.getElementById('s-expired').textContent = allStudents.filter(s => !s.key_code).length;
+  document.getElementById('s-logins').textContent  = allStudents.filter(s => s.email_sent_at).length;
 }
 
 function renderTable() {
   const q = document.getElementById('search-box').value.toLowerCase();
-  const filtered = allUsers.filter(u =>
-    u.name?.toLowerCase().includes(q) || u.national_id?.toLowerCase().includes(q) || u.batch_name?.toLowerCase().includes(q)
+  const filtered = allStudents.filter(u =>
+    u.name?.toLowerCase().includes(q) ||
+    u.region?.toLowerCase().includes(q) ||
+    u.unit_name?.toLowerCase().includes(q) ||
+    u.email?.toLowerCase().includes(q) ||
+    u.batch_name?.toLowerCase().includes(q)
   );
   const tbody = document.getElementById('users-tbody');
-  if (!filtered.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>'; return; }
+  if (!filtered.length) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.className = 'empty-row';
+    const emptyCell = document.createElement('td');
+    emptyCell.setAttribute('colspan', '10');
+    emptyCell.textContent = '查無資料';
+    emptyRow.appendChild(emptyCell);
+    tbody.replaceChildren(emptyRow);
+    return;
+  }
   const now = new Date();
-  tbody.innerHTML = filtered.map(u => {
-    const exp = new Date(u.expires_at);
-    const isExp = exp <= now;
-    const daysLeft = Math.ceil((exp - now) / 86400000);
-    let badge;
-    if (!u.is_active) badge = '<span class="badge badge-red">已停用</span>';
-    else if (isExp)   badge = '<span class="badge badge-warn">已到期</span>';
-    else if (daysLeft <= 7) badge = `<span class="badge badge-warn">剩 ${daysLeft} 天</span>`;
-    else badge = '<span class="badge badge-green">有效</span>';
-    return `<tr>
-      <td><strong>${esc(u.name)}</strong></td>
-      <td style="font-family:monospace">${esc(u.national_id)}</td>
-      <td class="hide-sm">${esc(u.batch_name||'—')}</td>
-      <td class="hide-sm">${u.expires_at?.substring(0,10)||'—'}</td>
-      <td>${badge}</td>
-      <td class="hide-sm">${u.login_count||0}</td>
-      <td>
-        <button class="btn btn-outline btn-sm" onclick="openEditUserModal('${u.id}')">編輯</button>
-        ${u.is_active
-          ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleUser('${u.id}',false)">停用</button>`
-          : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleUser('${u.id}',true)">啟用</button>`
-        }
-      </td>
-    </tr>`;
-  }).join('');
+
+  // Build rows as DOM elements to avoid XSS risk with dynamic HTML
+  const rows = filtered.map(u => {
+    const exp = u.expires_at ? new Date(u.expires_at) : null;
+    const isExp = exp && exp <= now;
+    const daysLeft = exp ? Math.ceil((exp - now) / 86400000) : null;
+    let badgeText, badgeClass;
+    if (!u.is_active)      { badgeText = '已停用'; badgeClass = 'badge-red'; }
+    else if (!u.key_code)  { badgeText = '未分配'; badgeClass = 'badge-warn'; }
+    else if (isExp)        { badgeText = '已到期'; badgeClass = 'badge-warn'; }
+    else if (daysLeft <= 7){ badgeText = '剩 ' + daysLeft + ' 天'; badgeClass = 'badge-warn'; }
+    else                   { badgeText = '有效'; badgeClass = 'badge-green'; }
+
+    const sentText = u.email_sent_at
+      ? new Date(u.email_sent_at).toLocaleDateString('zh-TW')
+      : '—';
+
+    const tr = document.createElement('tr');
+
+    // 區部
+    const tdRegion = document.createElement('td');
+    tdRegion.className = 'hide-sm';
+    tdRegion.textContent = u.region || '—';
+
+    // 單位
+    const tdUnit = document.createElement('td');
+    tdUnit.className = 'hide-sm';
+    tdUnit.textContent = u.unit_name || '—';
+
+    // 姓名
+    const tdName = document.createElement('td');
+    const strong = document.createElement('strong');
+    strong.textContent = u.name;
+    tdName.appendChild(strong);
+
+    // 信箱
+    const tdEmail = document.createElement('td');
+    tdEmail.className = 'hide-sm';
+    tdEmail.textContent = u.email || '—';
+
+    // 梯次
+    const tdBatch = document.createElement('td');
+    tdBatch.className = 'hide-sm';
+    tdBatch.textContent = u.batch_name || '—';
+
+    // 授權碼
+    const tdKey = document.createElement('td');
+    if (u.key_code) {
+      const span = document.createElement('span');
+      span.className = 'key-code';
+      span.title = '點擊複製';
+      span.textContent = u.key_code;
+      span.onclick = () => navigator.clipboard.writeText(u.key_code);
+      tdKey.appendChild(span);
+    } else {
+      tdKey.textContent = '—';
+    }
+
+    // 到期日
+    const tdExp = document.createElement('td');
+    tdExp.className = 'hide-sm';
+    tdExp.textContent = u.expires_at?.substring(0,10) || '—';
+
+    // 狀態 badge
+    const tdBadge = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + badgeClass;
+    badge.textContent = badgeText;
+    tdBadge.appendChild(badge);
+
+    // 寄送
+    const tdSend = document.createElement('td');
+    if (u.email && u.key_code) {
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'btn btn-info btn-sm';
+      sendBtn.textContent = u.email_sent_at ? '重寄' : '寄送';
+      sendBtn.title = u.email_sent_at ? ('上次寄送：' + sentText) : '寄授權碼至信箱';
+      sendBtn.onclick = () => sendLicenseEmail(u.id);
+      tdSend.appendChild(sendBtn);
+    } else {
+      tdSend.textContent = '—';
+    }
+
+    // 操作
+    const tdOps = document.createElement('td');
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-outline btn-sm';
+    editBtn.textContent = '編輯';
+    editBtn.onclick = () => openEditUserModal(u.id);
+    tdOps.appendChild(editBtn);
+
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = u.is_active ? 'btn btn-danger btn-sm' : 'btn btn-outline btn-sm';
+    toggleBtn.style.marginLeft = '4px';
+    toggleBtn.textContent = u.is_active ? '停用' : '啟用';
+    toggleBtn.onclick = () => toggleUser(u.id, !u.is_active);
+    tdOps.appendChild(toggleBtn);
+
+    tr.append(tdRegion, tdUnit, tdName, tdEmail, tdBatch, tdKey, tdExp, tdBadge, tdSend, tdOps);
+    return tr;
+  });
+
+  tbody.replaceChildren(...rows);
 }
 
 async function toggleUser(id, active) {
-  const { error } = await sb.from('web_users').update({ is_active: active }).eq('id', id);
+  const { error } = await sb.from('students').update({ is_active: active }).eq('id', id);
   if (error) { alert('操作失敗：' + error.message); return; }
   loadUsers();
 }
 
-function openAddUserModal() {
+async function sendLicenseEmail(studentId) {
+  const s = allStudents.find(x => x.id === studentId);
+  if (!s) return;
+  if (!s.email)     { alert('此學員未設定信箱'); return; }
+  if (!s.key_code)  { alert('此學員尚未分配授權碼，請先編輯學員並指定授權碼'); return; }
+
+  const subject = encodeURIComponent('【新光人壽】業務員資格測驗學習APP — 授權碼通知');
+  const expStr  = s.expires_at?.substring(0,10) || '請洽管理員';
+  const batchStr = s.batch_name || '一般學員';
+  const body = encodeURIComponent(
+    '親愛的 ' + s.name + ' 您好，\n\n' +
+    '您的 APP 授權碼如下：\n\n' +
+    '  ' + s.key_code + '\n\n' +
+    '梯次：' + batchStr + '\n' +
+    '有效期限：' + expStr + '\n\n' +
+    '請至 APP 輸入上述授權碼以啟用學習功能。\n\n' +
+    '若有任何問題，請聯繫訓練部門。\n\n' +
+    '祝學習順利！\n新光人壽教育訓練部'
+  );
+
+  window.open('mailto:' + s.email + '?subject=' + subject + '&body=' + body);
+
+  // Record send time in DB
+  const now = new Date().toISOString();
+  const { error } = await sb.from('students').update({ email_sent_at: now }).eq('id', studentId);
+  if (!error) {
+    const idx = allStudents.findIndex(x => x.id === studentId);
+    if (idx >= 0) allStudents[idx].email_sent_at = now;
+    updateUserStats();
+    renderTable();
+  }
+}
+
+async function openAddUserModal() {
   document.getElementById('user-modal-title').textContent = '新增學員';
   document.getElementById('edit-user-id').value = '';
-  ['f-name','f-national-id','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-birth-date').value = '';
+  ['f-region','f-unit','f-name','f-email','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
   const d = new Date(); d.setMonth(d.getMonth() + 6);
   document.getElementById('f-expires-at').value = d.toISOString().substring(0,10);
   document.getElementById('user-modal-error').textContent = '';
+  await populateKeyDropdown(null);
   document.getElementById('user-modal').classList.add('open');
 }
 
-function openEditUserModal(id) {
-  const u = allUsers.find(x => x.id === id);
+async function openEditUserModal(id) {
+  const u = allStudents.find(x => x.id === id);
   if (!u) return;
   document.getElementById('user-modal-title').textContent = '編輯學員';
-  document.getElementById('edit-user-id').value         = u.id;
-  document.getElementById('f-name').value               = u.name || '';
-  document.getElementById('f-national-id').value        = u.national_id || '';
-  document.getElementById('f-birth-date').value         = u.birth_date?.substring(0,10) || '';
-  document.getElementById('f-batch-name').value         = u.batch_name || '';
-  document.getElementById('f-expires-at').value         = u.expires_at?.substring(0,10) || '';
-  document.getElementById('f-notes').value              = u.notes || '';
+  document.getElementById('edit-user-id').value    = u.id;
+  document.getElementById('f-region').value        = u.region || '';
+  document.getElementById('f-unit').value          = u.unit_name || '';
+  document.getElementById('f-name').value          = u.name || '';
+  document.getElementById('f-email').value         = u.email || '';
+  document.getElementById('f-batch-name').value    = u.batch_name || '';
+  document.getElementById('f-expires-at').value    = u.expires_at?.substring(0,10) || '';
+  document.getElementById('f-notes').value         = u.notes || '';
   document.getElementById('user-modal-error').textContent = '';
+  await populateKeyDropdown(u.key_id);
   document.getElementById('user-modal').classList.add('open');
 }
 
 async function saveUser() {
-  const id       = document.getElementById('edit-user-id').value;
-  const name     = document.getElementById('f-name').value.trim();
-  const natId    = document.getElementById('f-national-id').value.trim().toUpperCase();
-  const birth    = document.getElementById('f-birth-date').value;
-  const batch    = document.getElementById('f-batch-name').value.trim();
-  const expires  = document.getElementById('f-expires-at').value;
-  const notes    = document.getElementById('f-notes').value.trim();
-  const errEl    = document.getElementById('user-modal-error');
-  if (!name)       { errEl.textContent = '請輸入姓名'; return; }
-  if (!/^[A-Z][12][0-9]{8}$/.test(natId)) { errEl.textContent = '身分證號碼格式不正確'; return; }
-  if (!birth)      { errEl.textContent = '請選擇出生年月日'; return; }
-  if (!expires)    { errEl.textContent = '請選擇授權到期日'; return; }
+  const id      = document.getElementById('edit-user-id').value;
+  const region  = document.getElementById('f-region').value.trim();
+  const unit    = document.getElementById('f-unit').value.trim();
+  const name    = document.getElementById('f-name').value.trim();
+  const email   = document.getElementById('f-email').value.trim();
+  const batch   = document.getElementById('f-batch-name').value.trim();
+  const expires = document.getElementById('f-expires-at').value;
+  const notes   = document.getElementById('f-notes').value.trim();
+  const keySelId = document.getElementById('f-key-select').value;
+  const errEl   = document.getElementById('user-modal-error');
+
+  if (!name) { errEl.textContent = '請輸入姓名'; return; }
+
   const btn = document.getElementById('save-user-btn');
   btn.disabled = true; btn.textContent = '儲存中…'; errEl.textContent = '';
-  const payload = { name, national_id: natId, birth_date: birth, batch_name: batch||'一般學員', expires_at: expires, notes: notes||null };
+
+  // Resolve the key_id and key_code
+  let keyId = keySelId || null;
+  let keyCode = null;
+  let expiresAt = expires || null;
+
+  if (keyId) {
+    // Find key in allKeys (Tab2 data) or query
+    const { data: kd } = await sb.from('license_keys').select('key_code, expires_at').eq('id', keyId).single();
+    if (kd) {
+      keyCode = kd.key_code;
+      if (!expiresAt) expiresAt = kd.expires_at;
+    }
+  } else if (!id) {
+    // Auto-assign: pick first available active key
+    const available = await loadAvailableKeys(null);
+    if (available.length > 0) {
+      keyId = available[0].id;
+      keyCode = available[0].key_code;
+      if (!expiresAt) expiresAt = available[0].expires_at;
+    }
+  } else {
+    // Editing and keeping existing key
+    const existing = allStudents.find(x => x.id === id);
+    keyId = existing?.key_id || null;
+    keyCode = existing?.key_code || null;
+  }
+
+  const payload = {
+    region: region || null,
+    unit_name: unit || null,
+    name,
+    email: email || null,
+    batch_name: batch || null,
+    key_id: keyId,
+    key_code: keyCode,
+    expires_at: expiresAt || null,
+    notes: notes || null
+  };
+
   let error;
-  if (id) { ({ error } = await sb.from('web_users').update(payload).eq('id', id)); }
-  else    { payload.is_active = true; ({ error } = await sb.from('web_users').insert(payload)); }
+  if (id) {
+    ({ error } = await sb.from('students').update(payload).eq('id', id));
+  } else {
+    payload.is_active = true;
+    ({ error } = await sb.from('students').insert(payload));
+  }
+
   btn.disabled = false; btn.textContent = '儲存';
   if (error) { errEl.textContent = '儲存失敗：' + error.message; return; }
   closeModal('user-modal'); loadUsers();
