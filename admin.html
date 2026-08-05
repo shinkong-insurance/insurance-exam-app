@@ -587,12 +587,33 @@ function renderTable() {
     // 寄送
     const tdSend = document.createElement('td');
     if (u.email && u.key_code) {
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'display:flex;flex-direction:column;gap:4px;align-items:flex-start;';
+
+      // Status badge
+      const statusBadge = document.createElement('span');
+      statusBadge.id = 'delivery-status-' + u.id;
+      if (u.delivery_status === 'sent') {
+        statusBadge.style.cssText = 'font-size:11px;color:var(--success);';
+        statusBadge.textContent = '✅ 已送達 ' + sentText;
+      } else if (u.delivery_status === 'failed') {
+        statusBadge.style.cssText = 'font-size:11px;color:var(--danger);';
+        statusBadge.textContent = '❌ 寄送失敗';
+      } else if (u.email_sent_at) {
+        statusBadge.style.cssText = 'font-size:11px;color:var(--muted);';
+        statusBadge.textContent = '📧 ' + sentText;
+      }
+
       const sendBtn = document.createElement('button');
       sendBtn.className = 'btn btn-info btn-sm';
+      sendBtn.id = 'send-btn-' + u.id;
       sendBtn.textContent = u.email_sent_at ? '重寄' : '寄送';
       sendBtn.title = u.email_sent_at ? ('上次寄送：' + sentText) : '寄授權碼至信箱';
       sendBtn.onclick = () => sendLicenseEmail(u.id);
-      tdSend.appendChild(sendBtn);
+
+      wrapper.appendChild(statusBadge);
+      wrapper.appendChild(sendBtn);
+      tdSend.appendChild(wrapper);
     } else {
       tdSend.textContent = '—';
     }
@@ -632,30 +653,48 @@ async function sendLicenseEmail(studentId) {
   if (!s.email)     { alert('此學員未設定信箱'); return; }
   if (!s.key_code)  { alert('此學員尚未分配授權碼，請先編輯學員並指定授權碼'); return; }
 
-  const subject = encodeURIComponent('【新光人壽】業務員資格測驗學習APP — 授權碼通知');
-  const expStr  = s.expires_at?.substring(0,10) || '請洽管理員';
-  const batchStr = s.batch_name || '一般學員';
-  const body = encodeURIComponent(
-    '親愛的 ' + s.name + ' 您好，\n\n' +
-    '您的 APP 授權碼如下：\n\n' +
-    '  ' + s.key_code + '\n\n' +
-    '梯次：' + batchStr + '\n' +
-    '有效期限：' + expStr + '\n\n' +
-    '請至 APP 輸入上述授權碼以啟用學習功能。\n\n' +
-    '若有任何問題，請聯繫訓練部門。\n\n' +
-    '祝學習順利！\n新光人壽教育訓練部'
-  );
+  // UI: show sending state
+  const btn = document.getElementById('send-btn-' + studentId);
+  const statusEl = document.getElementById('delivery-status-' + studentId);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 寄送中…'; }
+  if (statusEl) { statusEl.style.color = 'var(--warn)'; statusEl.textContent = '⏳ 寄送中…'; }
 
-  window.open('mailto:' + s.email + '?subject=' + subject + '&body=' + body);
+  try {
+    const EDGE_URL = SUPABASE_URL + '/functions/v1/send-license-email';
 
-  // Record send time in DB
-  const now = new Date().toISOString();
-  const { error } = await sb.from('students').update({ email_sent_at: now }).eq('id', studentId);
-  if (!error) {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+      },
+      body: JSON.stringify({ student_id: studentId }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      throw new Error(data.error || '伺服器錯誤 ' + resp.status);
+    }
+
+    // Success
+    const sentDateStr = new Date().toLocaleDateString('zh-TW');
     const idx = allStudents.findIndex(x => x.id === studentId);
-    if (idx >= 0) allStudents[idx].email_sent_at = now;
+    if (idx >= 0) {
+      allStudents[idx].email_sent_at = data.sent_at;
+      allStudents[idx].delivery_status = 'sent';
+    }
+    if (btn) { btn.disabled = false; btn.textContent = '重寄'; }
+    if (statusEl) { statusEl.style.color = 'var(--success)'; statusEl.textContent = '✅ 已送達 ' + sentDateStr; }
     updateUserStats();
-    renderTable();
+
+  } catch (err) {
+    // Failed
+    const idx = allStudents.findIndex(x => x.id === studentId);
+    if (idx >= 0) allStudents[idx].delivery_status = 'failed';
+    if (btn) { btn.disabled = false; btn.textContent = '重試'; }
+    if (statusEl) { statusEl.style.color = 'var(--danger)'; statusEl.textContent = '❌ 失敗：' + err.message; }
+    alert('寄送失敗：' + err.message);
   }
 }
 
