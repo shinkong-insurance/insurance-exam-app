@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>後台管理 — 保險考照 APP</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #0f1117; --card: #1a1d2e; --card2: #22263a; --border: #2e3250;
@@ -99,6 +100,23 @@
   .progress-bar { background: var(--card2); border-radius: 99px; height: 6px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 99px; background: var(--primary); transition: width .3s; }
   @media(max-width:600px){ .hide-sm { display:none; } th.hide-sm { display:none; } td.hide-sm { display:none; } .form-row-2 { grid-template-columns: 1fr; } }
+
+  /* ── Stats Tab ── */
+  .stats-filter-bar { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:20px; }
+  .stats-filter-bar label { font-size:11px; color:var(--muted); margin-bottom:3px; display:block; }
+  .stats-filter-bar input, .stats-filter-bar select { background:var(--card2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:7px 10px; font-size:13px; outline:none; }
+  .stats-filter-bar input:focus, .stats-filter-bar select:focus { border-color:var(--primary); }
+  .view-tabs { display:flex; gap:0; margin-bottom:16px; border-bottom:1px solid var(--border); }
+  .view-tab { padding:8px 16px; cursor:pointer; border:none; background:transparent; color:var(--muted); font-size:13px; font-weight:600; border-bottom:2px solid transparent; transition:all .2s; }
+  .view-tab.active { color:var(--primary); border-bottom-color:var(--primary); }
+  .export-bar { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+  .mini-bar { display:inline-block; height:8px; border-radius:4px; background:var(--primary); min-width:4px; }
+  td.num-cell { font-family:monospace; font-size:13px; }
+  .correct-rate { font-weight:700; }
+  .correct-rate.hi { color:var(--success); }
+  .correct-rate.mid { color:var(--warn); }
+  .correct-rate.lo { color:var(--danger); }
+  #stats-loading { text-align:center; padding:40px; color:var(--muted); display:none; }
 </style>
 </head>
 <body>
@@ -143,6 +161,7 @@
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('users')">👥 學員管理</button>
     <button class="tab-btn" onclick="switchTab('keys')">🔑 授權碼管理（License Key 版）</button>
+    <button class="tab-btn" onclick="switchTab('stats')">📊 學員統計管理</button>
   </div>
 
   <!-- ══ Tab: 學員管理 ══ -->
@@ -185,6 +204,160 @@
           </table>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ══ Tab: 學員統計管理 ══ -->
+  <div id="tab-stats" class="tab-panel">
+    <div class="content">
+
+      <!-- 摘要統計卡 -->
+      <div class="stats" id="st-summary-row">
+        <div class="stat-card"><div class="num" id="st-students">—</div><div class="lbl">追蹤學員數</div></div>
+        <div class="stat-card"><div class="num" id="st-logins">—</div><div class="lbl">累計登入次數</div></div>
+        <div class="stat-card"><div class="num" id="st-hours">—</div><div class="lbl">累計學習小時</div></div>
+        <div class="stat-card"><div class="num" id="st-quizzes">—</div><div class="lbl">累計練習次數</div></div>
+        <div class="stat-card"><div class="num" id="st-rate">—</div><div class="lbl">平均答對率</div></div>
+      </div>
+
+      <!-- 篩選列 -->
+      <div class="stats-filter-bar">
+        <div>
+          <label>開始日期</label>
+          <input type="date" id="st-date-from">
+        </div>
+        <div>
+          <label>結束日期</label>
+          <input type="date" id="st-date-to">
+        </div>
+        <div>
+          <label>區部</label>
+          <select id="st-region-filter" style="min-width:120px">
+            <option value="">全部區部</option>
+          </select>
+        </div>
+        <div>
+          <label>梯次</label>
+          <select id="st-batch-filter" style="min-width:130px">
+            <option value="">全部梯次</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button class="btn btn-primary btn-sm" onclick="applyStatsFilter()">🔍 套用篩選</button>
+          <button class="btn btn-outline btn-sm" onclick="resetStatsFilter()">重置</button>
+          <button class="btn btn-outline btn-sm" onclick="loadStats()">重整</button>
+        </div>
+      </div>
+
+      <!-- 匯出列 -->
+      <div class="export-bar">
+        <button class="btn btn-outline btn-sm" onclick="exportStatsExcel()">📥 匯出 Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="exportStatsPDF()">🖨️ 列印 / PDF</button>
+        <span style="color:var(--muted);font-size:12px;margin-left:4px;align-self:center">匯出目前檢視的資料</span>
+      </div>
+
+      <!-- 檢視切換 -->
+      <div class="view-tabs">
+        <button class="view-tab active" onclick="switchStatsView('individual')">👤 個人明細</button>
+        <button class="view-tab" onclick="switchStatsView('unit')">🏢 單位彙總</button>
+        <button class="view-tab" onclick="switchStatsView('region')">🗺️ 區部彙總</button>
+        <button class="view-tab" onclick="switchStatsView('referrer')">🤝 介紹人彙總</button>
+      </div>
+
+      <div id="stats-loading">⏳ 載入中…</div>
+
+      <!-- 個人明細表 -->
+      <div class="panel" id="view-individual">
+        <div class="panel-header">
+          <h2>個人學習明細</h2>
+          <input class="search-input" id="st-search" placeholder="🔍 搜尋姓名 / 授權碼" oninput="renderIndividual()">
+        </div>
+        <div style="overflow-x:auto">
+          <table id="st-individual-table">
+            <thead>
+              <tr>
+                <th>姓名</th>
+                <th class="hide-sm">區部</th>
+                <th class="hide-sm">單位</th>
+                <th class="hide-sm">梯次</th>
+                <th>登入次數</th>
+                <th class="hide-sm">學習天數</th>
+                <th>學習時數</th>
+                <th class="hide-sm">閱讀章節</th>
+                <th>練習次數</th>
+                <th>總答題</th>
+                <th>答對率</th>
+                <th class="hide-sm">最後登入</th>
+              </tr>
+            </thead>
+            <tbody id="st-individual-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 單位彙總表 -->
+      <div class="panel" id="view-unit" style="display:none">
+        <div class="panel-header"><h2>單位學習彙總</h2></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>區部</th>
+                <th>單位</th>
+                <th>學員數</th>
+                <th>累計登入</th>
+                <th>學習時數</th>
+                <th>練習次數</th>
+                <th>總答題數</th>
+                <th>平均答對率</th>
+              </tr>
+            </thead>
+            <tbody id="st-unit-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 區部彙總表 -->
+      <div class="panel" id="view-region" style="display:none">
+        <div class="panel-header"><h2>區部學習彙總</h2></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>區部</th>
+                <th>學員數</th>
+                <th>累計登入</th>
+                <th>學習時數</th>
+                <th>練習次數</th>
+                <th>總答題數</th>
+                <th>平均答對率</th>
+              </tr>
+            </thead>
+            <tbody id="st-region-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 介紹人彙總表 -->
+      <div class="panel" id="view-referrer" style="display:none">
+        <div class="panel-header"><h2>介紹人學員彙總</h2></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>介紹人</th>
+                <th class="hide-sm">介紹人手機</th>
+                <th>介紹學員數</th>
+                <th>累計登入</th>
+                <th>學習時數</th>
+                <th>平均答對率</th>
+              </tr>
+            </thead>
+            <tbody id="st-referrer-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -468,11 +641,12 @@ document.getElementById('admin-pass').addEventListener('keydown', e => { if (e.k
 // ══════════════════════════════════════════════
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const t = ['users','keys'][i];
+    const t = ['users','keys','stats'][i];
     b.classList.toggle('active', t === name);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'stats' && !statsLoaded) loadStats();
 }
 
 // ══════════════════════════════════════════════
@@ -1124,10 +1298,258 @@ function esc(str) {
 
 function copyText(text) {
   navigator.clipboard.writeText(text).then(() => {
-    // brief flash
     const sel = window.getSelection();
   });
 }
+
+// ══════════════════════════════════════════════
+// Stats Tab (Tab 3 — 學員統計管理)
+// ══════════════════════════════════════════════
+let statsLoaded = false;
+let allStatsData = [];
+let statsFiltered = [];
+let currentStatsView = 'individual';
+
+async function loadStats() {
+  const loading = document.getElementById('stats-loading');
+  loading.style.display = 'block';
+  loading.textContent = '⏳ 載入中…';
+  try {
+    const { data: students, error: e1 } = await sb
+      .from('students')
+      .select('id,key_code,name,region,unit_name,batch_name,referrer,referrer_phone,phone,email')
+      .order('created_at', { ascending: false });
+    if (e1) throw e1;
+
+    let allLogs = [];
+    const PAGE = 1000;
+    let from = 0;
+    while (true) {
+      const { data, error: e2 } = await sb
+        .from('study_logs')
+        .select('license_key,event_type,duration_seconds,questions_total,questions_correct,chapter_id,created_at')
+        .range(from, from + PAGE - 1)
+        .order('created_at', { ascending: true });
+      if (e2) throw e2;
+      allLogs = allLogs.concat(data || []);
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
+    }
+
+    const logsByKey = {};
+    for (const log of allLogs) {
+      const k = log.license_key;
+      if (!logsByKey[k]) logsByKey[k] = [];
+      logsByKey[k].push(log);
+    }
+
+    allStatsData = students.map(s => {
+      const logs      = logsByKey[s.key_code] || [];
+      const loginLogs = logs.filter(l => l.event_type === 'login');
+      const readLogs  = logs.filter(l => l.event_type === 'chapter_read');
+      const quizLogs  = logs.filter(l => l.event_type === 'quiz_session' || l.event_type === 'exam_session');
+      const loginDates  = [...new Set(loginLogs.map(l => l.created_at.substring(0, 10)))];
+      const readSeconds = readLogs.reduce((sum, l) => sum + (l.duration_seconds || 0), 0);
+      const chaptersRead = new Set(readLogs.filter(l => l.chapter_id).map(l => l.chapter_id)).size;
+      const totalQ    = quizLogs.reduce((sum, l) => sum + (l.questions_total || 0), 0);
+      const correctQ  = quizLogs.reduce((sum, l) => sum + (l.questions_correct || 0), 0);
+      const lastLogin = loginLogs.length ? loginLogs[loginLogs.length - 1].created_at.substring(0, 10) : null;
+      return {
+        student: s,
+        stats: {
+          login_count: loginLogs.length, login_days: loginDates.length,
+          read_seconds: readSeconds, chapters_read: chaptersRead,
+          quiz_count: quizLogs.length, total_questions: totalQ,
+          correct_questions: correctQ,
+          correct_rate: totalQ > 0 ? (correctQ / totalQ * 100).toFixed(1) + '%' : '—',
+          last_login: lastLogin,
+        }
+      };
+    });
+
+    const tracked  = allStatsData.filter(d => d.stats.login_count > 0).length;
+    const totLogin = allStatsData.reduce((s, d) => s + d.stats.login_count, 0);
+    const totSecs  = allStatsData.reduce((s, d) => s + d.stats.read_seconds, 0);
+    const totQuiz  = allStatsData.reduce((s, d) => s + d.stats.quiz_count, 0);
+    const rateItems = allStatsData.filter(d => d.stats.correct_rate !== '—');
+    const avgRate  = rateItems.length
+      ? (rateItems.reduce((s, d) => s + parseFloat(d.stats.correct_rate), 0) / rateItems.length).toFixed(1) + '%'
+      : '—';
+    document.getElementById('st-students').textContent = tracked;
+    document.getElementById('st-logins').textContent   = totLogin;
+    document.getElementById('st-hours').textContent    = (totSecs / 3600).toFixed(1) + 'h';
+    document.getElementById('st-quizzes').textContent  = totQuiz;
+    document.getElementById('st-rate').textContent     = avgRate;
+
+    const regions = [...new Set(students.map(s => s.region).filter(Boolean))].sort();
+    const batches = [...new Set(students.map(s => s.batch_name).filter(Boolean))].sort();
+    const rSel = document.getElementById('st-region-filter');
+    const bSel = document.getElementById('st-batch-filter');
+    rSel.innerHTML = '<option value="">所有區部</option>' + regions.map(r => '<option value="' + esc(r) + '">' + esc(r) + '</option>').join('');
+    bSel.innerHTML = '<option value="">所有梯次</option>' + batches.map(b => '<option value="' + esc(b) + '">' + esc(b) + '</option>').join('');
+
+    statsFiltered = [...allStatsData];
+    renderAllStatsViews();
+    statsLoaded = true;
+    loading.style.display = 'none';
+  } catch (err) {
+    console.error('loadStats error:', err);
+    loading.textContent = '⚠️ 載入失敗：' + (err.message || String(err));
+  }
+}
+
+function applyStatsFilter() {
+  const from   = document.getElementById('st-date-from').value;
+  const to     = document.getElementById('st-date-to').value;
+  const region = document.getElementById('st-region-filter').value;
+  const batch  = document.getElementById('st-batch-filter').value;
+  statsFiltered = allStatsData.filter(d => {
+    if (region && d.student.region     !== region) return false;
+    if (batch  && d.student.batch_name !== batch)  return false;
+    if (from   && d.stats.last_login   && d.stats.last_login < from) return false;
+    if (to     && d.stats.last_login   && d.stats.last_login > to)   return false;
+    return true;
+  });
+  renderAllStatsViews();
+}
+
+function resetStatsFilter() {
+  ['st-date-from','st-date-to'].forEach(id => { document.getElementById(id).value = ''; });
+  ['st-region-filter','st-batch-filter'].forEach(id => { document.getElementById(id).value = ''; });
+  statsFiltered = [...allStatsData];
+  renderAllStatsViews();
+}
+
+function renderAllStatsViews() {
+  renderIndividual(); renderUnitView(); renderRegionView(); renderReferrerView();
+}
+
+function switchStatsView(view) {
+  currentStatsView = view;
+  document.querySelectorAll('.view-tab').forEach(btn => {
+    const m = (btn.getAttribute('onclick') || '').match(/'(\w+)'/);
+    btn.classList.toggle('active', !!(m && m[1] === view));
+  });
+  ['individual','unit','region','referrer'].forEach(v => {
+    document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
+  });
+}
+
+function renderIndividual() {
+  const q = (document.getElementById('st-search')?.value || '').toLowerCase().trim();
+  const rows = statsFiltered.filter(d =>
+    !q || (d.student.name || '').toLowerCase().includes(q) || (d.student.key_code || '').toLowerCase().includes(q)
+  );
+  const tbody = document.getElementById('st-individual-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:24px">暫無資料</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(d => {
+    const s = d.student, st = d.stats;
+    return '<tr><td>' + esc(s.name||'—') + '</td>'
+      + '<td class="hide-sm">' + esc(s.region||'—') + '</td>'
+      + '<td class="hide-sm">' + esc(s.unit_name||'—') + '</td>'
+      + '<td class="hide-sm">' + esc(s.batch_name||'—') + '</td>'
+      + '<td class="num-cell">' + st.login_count + '</td>'
+      + '<td class="hide-sm num-cell">' + st.login_days + '</td>'
+      + '<td class="num-cell">' + fmtTime(st.read_seconds) + '</td>'
+      + '<td class="hide-sm num-cell">' + st.chapters_read + '</td>'
+      + '<td class="num-cell">' + st.quiz_count + '</td>'
+      + '<td class="num-cell">' + st.total_questions + '</td>'
+      + '<td class="correct-rate">' + st.correct_rate + '</td>'
+      + '<td class="hide-sm">' + (st.last_login||'—') + '</td></tr>';
+  }).join('');
+}
+
+function renderUnitView() {
+  const grouped = {};
+  statsFiltered.forEach(d => {
+    const k = (d.student.region||'—') + '||' + (d.student.unit_name||'—');
+    if (!grouped[k]) grouped[k] = { region: d.student.region||'—', unit: d.student.unit_name||'—', items: [] };
+    grouped[k].items.push(d);
+  });
+  const tbody = document.getElementById('st-unit-tbody');
+  const vals = Object.values(grouped);
+  if (!vals.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">暫無資料</td></tr>'; return; }
+  tbody.innerHTML = vals.map(g => {
+    const a = aggStats(g.items);
+    return '<tr><td>' + esc(g.region) + '</td><td>' + esc(g.unit) + '</td>'
+      + '<td class="num-cell">' + g.items.length + '</td>'
+      + '<td class="num-cell">' + a.logins + '</td><td class="num-cell">' + a.hours + '</td>'
+      + '<td class="num-cell">' + a.quizzes + '</td><td class="num-cell">' + a.totalQ + '</td>'
+      + '<td class="correct-rate">' + a.rate + '</td></tr>';
+  }).join('');
+}
+
+function renderRegionView() {
+  const grouped = {};
+  statsFiltered.forEach(d => {
+    const k = d.student.region || '—';
+    if (!grouped[k]) grouped[k] = { region: k, items: [] };
+    grouped[k].items.push(d);
+  });
+  const tbody = document.getElementById('st-region-tbody');
+  const vals = Object.values(grouped);
+  if (!vals.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">暫無資料</td></tr>'; return; }
+  tbody.innerHTML = vals.map(g => {
+    const a = aggStats(g.items);
+    return '<tr><td>' + esc(g.region) + '</td>'
+      + '<td class="num-cell">' + g.items.length + '</td>'
+      + '<td class="num-cell">' + a.logins + '</td><td class="num-cell">' + a.hours + '</td>'
+      + '<td class="num-cell">' + a.quizzes + '</td><td class="num-cell">' + a.totalQ + '</td>'
+      + '<td class="correct-rate">' + a.rate + '</td></tr>';
+  }).join('');
+}
+
+function renderReferrerView() {
+  const grouped = {};
+  statsFiltered.forEach(d => {
+    const k = (d.student.referrer||'無') + '||' + (d.student.referrer_phone||'');
+    if (!grouped[k]) grouped[k] = { name: d.student.referrer||'無', phone: d.student.referrer_phone||'—', items: [] };
+    grouped[k].items.push(d);
+  });
+  const tbody = document.getElementById('st-referrer-tbody');
+  const vals = Object.values(grouped);
+  if (!vals.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">暫無資料</td></tr>'; return; }
+  tbody.innerHTML = vals.map(g => {
+    const a = aggStats(g.items);
+    return '<tr><td>' + esc(g.name) + '</td><td class="hide-sm">' + esc(g.phone) + '</td>'
+      + '<td class="num-cell">' + g.items.length + '</td>'
+      + '<td class="num-cell">' + a.logins + '</td><td class="num-cell">' + a.hours + '</td>'
+      + '<td class="correct-rate">' + a.rate + '</td></tr>';
+  }).join('');
+}
+
+function aggStats(items) {
+  const logins  = items.reduce((s, d) => s + d.stats.login_count, 0);
+  const secs    = items.reduce((s, d) => s + d.stats.read_seconds, 0);
+  const quizzes = items.reduce((s, d) => s + d.stats.quiz_count, 0);
+  const totalQ  = items.reduce((s, d) => s + d.stats.total_questions, 0);
+  const correctQ = items.reduce((s, d) => s + d.stats.correct_questions, 0);
+  return { logins, hours: fmtTime(secs), quizzes, totalQ,
+    rate: totalQ > 0 ? (correctQ / totalQ * 100).toFixed(1) + '%' : '—' };
+}
+
+function fmtTime(seconds) {
+  if (seconds <= 0) return '0s';
+  if (seconds < 60) return seconds + 's';
+  if (seconds < 3600) return Math.round(seconds / 60) + 'm';
+  return (seconds / 3600).toFixed(1) + 'h';
+}
+
+function exportStatsExcel() {
+  if (typeof XLSX === 'undefined') { alert('SheetJS 尚未載入，請重新整理後再試。'); return; }
+  const wb = XLSX.utils.book_new();
+  [['view-individual','個人明細'],['view-unit','單位彙總'],['view-region','區部彙總'],['view-referrer','介紹人彙總']]
+    .forEach(([id, name]) => {
+      const table = document.querySelector('#' + id + ' table');
+      if (table) XLSX.utils.book_append_sheet(wb, XLSX.utils.table_to_sheet(table), name);
+    });
+  XLSX.writeFile(wb, '學員統計_' + new Date().toISOString().substring(0,10) + '.xlsx');
+}
+
+function exportStatsPDF() { window.print(); }
 </script>
 </body>
 </html>
