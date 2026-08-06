@@ -219,6 +219,24 @@
             <button class="btn btn-outline btn-sm" onclick="loadKeys()">重整</button>
           </div>
         </div>
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+          <div><label style="font-size:11px;color:var(--muted);margin-bottom:3px;display:block">梯次</label>
+            <select id="lk-filter-batch" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px;outline:none" onchange="renderKeysTable()">
+              <option value="">所有梯次</option>
+            </select></div>
+          <div><label style="font-size:11px;color:var(--muted);margin-bottom:3px;display:block">到期日起</label>
+            <input type="date" id="lk-filter-from" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px;outline:none" onchange="renderKeysTable()"></div>
+          <div><label style="font-size:11px;color:var(--muted);margin-bottom:3px;display:block">到期日迄</label>
+            <input type="date" id="lk-filter-to" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px;outline:none" onchange="renderKeysTable()"></div>
+          <div><label style="font-size:11px;color:var(--muted);margin-bottom:3px;display:block">狀態</label>
+            <select id="lk-filter-status" style="background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:13px;outline:none" onchange="renderKeysTable()">
+              <option value="">所有狀態</option>
+              <option value="active">有效</option>
+              <option value="expired">已到期</option>
+              <option value="disabled">已停用</option>
+            </select></div>
+          <button class="btn btn-outline btn-sm" onclick="resetKeyFilters()">重設篩選</button>
+        </div>
         <div style="overflow-x:auto">
           <table>
             <thead>
@@ -841,6 +859,11 @@ async function loadKeys() {
   const { data, error } = await sb.from('license_keys').select('*').order('created_at', { ascending: false });
   if (error) { tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">載入失敗：${error.message}</td></tr>`; return; }
   allKeys = data || [];
+  // Populate batch filter dropdown
+  const batches = [...new Set(allKeys.map(k => k.batch_name).filter(Boolean))].sort();
+  const bSel = document.getElementById('lk-filter-batch');
+  const curBatch = bSel.value;
+  bSel.innerHTML = '<option value="">所有梯次</option>' + batches.map(b => `<option value="${b}"${b===curBatch?' selected':''}>${b}</option>`).join('');
   updateKeyStats(); renderKeysTable();
 }
 
@@ -852,11 +875,36 @@ function updateKeyStats() {
   document.getElementById('lk-uses').textContent    = allKeys.reduce((s,k) => s + (k.used_count||0), 0);
 }
 
+function resetKeyFilters() {
+  document.getElementById('lk-search-box').value = '';
+  document.getElementById('lk-filter-batch').value = '';
+  document.getElementById('lk-filter-from').value = '';
+  document.getElementById('lk-filter-to').value = '';
+  document.getElementById('lk-filter-status').value = '';
+  renderKeysTable();
+}
+
 function renderKeysTable() {
   const q = document.getElementById('lk-search-box').value.toLowerCase();
-  const filtered = allKeys.filter(k =>
-    k.key_code?.toLowerCase().includes(q) || k.batch_name?.toLowerCase().includes(q)
-  );
+  const batchF = document.getElementById('lk-filter-batch').value;
+  const fromF = document.getElementById('lk-filter-from').value;
+  const toF = document.getElementById('lk-filter-to').value;
+  const statusF = document.getElementById('lk-filter-status').value;
+  const now = new Date();
+  const filtered = allKeys.filter(k => {
+    if (q && !k.key_code?.toLowerCase().includes(q) && !k.batch_name?.toLowerCase().includes(q)) return false;
+    if (batchF && k.batch_name !== batchF) return false;
+    const exp = k.expires_at?.substring(0,10) || '';
+    if (fromF && exp && exp < fromF) return false;
+    if (toF && exp && exp > toF) return false;
+    if (statusF) {
+      const isExp = k.expires_at && new Date(k.expires_at) <= now;
+      if (statusF === 'active' && (!k.is_active || isExp)) return false;
+      if (statusF === 'expired' && (!isExp || !k.is_active)) return false;
+      if (statusF === 'disabled' && k.is_active) return false;
+    }
+    return true;
+  });
   const tbody = document.getElementById('keys-tbody');
   if (!filtered.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>'; return; }
   const now = new Date();
@@ -896,6 +944,7 @@ function renderKeysTable() {
           ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',false)">停用</button>`
           : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',true)">啟用</button>`
         }
+        <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteKey('${k.id}','${esc(k.key_code)}')">刪除</button>
       </td>
     </tr>`;
   }).join('');
@@ -973,6 +1022,13 @@ async function saveKey() {
 async function toggleKey(id, active) {
   const { error } = await sb.from('license_keys').update({ is_active: active }).eq('id', id);
   if (error) { alert('操作失敗：' + error.message); return; }
+  loadKeys();
+}
+
+async function deleteKey(id, keyCode) {
+  if (!confirm(`確定要永久刪除授權碼「${keyCode}」？\n此操作無法復原。`)) return;
+  const { error } = await sb.from('license_keys').delete().eq('id', id);
+  if (error) { alert('刪除失敗：' + error.message); return; }
   loadKeys();
 }
 
