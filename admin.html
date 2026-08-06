@@ -908,7 +908,6 @@ function renderKeysTable() {
   });
   const tbody = document.getElementById('keys-tbody');
   if (!filtered.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="7">查無資料</td></tr>'; return; }
-  const now = new Date();
   tbody.innerHTML = filtered.map(k => {
     const exp = new Date(k.expires_at);
     const isExp = exp <= now;
