@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>學員報名 — 新光人壽業務員資格測驗</title>
+<style>
+  :root {
+    --bg: #0f1117; --card: #1a1d2e; --border: #2e3250;
+    --text: #e2e8f0; --muted: #7a8098;
+    --primary: #f97316; --primary-h: #ea580c;
+    --success: #22c55e; --danger: #ef4444;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .logo-bar {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .logo-bar .icon { font-size: 48px; display: block; margin-bottom: 10px; }
+  .logo-bar h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .logo-bar p { color: var(--muted); font-size: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .card h2 { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
+  .card .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    color: var(--primary);
+    text-transform: uppercase;
+    margin: 24px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label:first-of-type { margin-top: 0; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 480px) { .row { grid-template-columns: 1fr; } .card { padding: 28px 20px; } }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field label { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .field label .req { color: var(--primary); margin-left: 2px; }
+  .field input, .field select {
+    background: #0f1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 15px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color .2s;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--primary); }
+  .field input::placeholder { color: var(--muted); opacity: .7; }
+  .field .hint { font-size: 12px; color: var(--muted); }
+
+  .btn-submit {
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-h));
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 28px;
+    letter-spacing: .5px;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn-submit:hover { opacity: .9; }
+  .btn-submit:active { transform: scale(.98); }
+  .btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+  .alert {
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 14px;
+    margin-top: 16px;
+    display: none;
+  }
+  .alert.error { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; display: block; }
+  .alert.success { background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3); color: #86efac; display: block; }
+
+  /* Success screen */
+  .success-screen {
+    display: none;
+    text-align: center;
+    padding: 12px 0;
+  }
+  .success-screen .check { font-size: 56px; margin-bottom: 16px; }
+  .success-screen h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+  .success-screen p { color: var(--muted); font-size: 14px; line-height: 1.8; }
+  .success-screen .key-box {
+    background: #0f1117;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 20px 0;
+    font-family: 'Courier New', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 4px;
+  }
+  .btn-back {
+    display: inline-block;
+    margin-top: 20px;
+    background: var(--primary);
+    color: #fff;
+    text-decoration: none;
+    padding: 12px 36px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 24px;
+  }
+  .footer a { color: var(--primary); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="logo-bar">
+  <span class="icon">📱</span>
+  <h1>業務員資格測驗學習APP</h1>
+  <p>新光人壽 — 學員報名</p>
+</div>
+
+<div class="card">
+  <!-- Form view -->
+  <div id="form-view">
+    <h2>學員報名</h2>
+    <p class="subtitle">填寫完成後，授權碼將自動寄送至您的信箱，即可開始學習。</p>
+
+    <div class="section-label">基本資料</div>
+
+    <div class="row">
+      <div class="field">
+        <label>區部</label>
+        <input type="text" id="f-region" placeholder="例：台北區部" maxlength="30">
+      </div>
+      <div class="field">
+        <label>單位</label>
+        <input type="text" id="f-unit" placeholder="例：忠孝通訊處" maxlength="40">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>姓名 <span class="req">*</span></label>
+        <input type="text" id="f-name" placeholder="真實姓名" maxlength="20" required>
+      </div>
+      <div class="field">
+        <label>手機</label>
+        <input type="tel" id="f-phone" placeholder="09xx-xxxxxx" maxlength="20">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>信箱 <span class="req">*</span></label>
+      <input type="email" id="f-email" placeholder="example@email.com" maxlength="80" required>
+      <span class="hint">授權碼將寄送至此信箱，請填寫正確</span>
+    </div>
+
+    <div class="section-label">課程資訊</div>
+
+    <div class="field">
+      <label>梯次名稱</label>
+      <input type="text" id="f-batch" placeholder="例：2026第一梯次" maxlength="40">
+    </div>
+
+    <div class="section-label">介紹人（選填）</div>
+
+    <div class="row">
+      <div class="field">
+        <label>介紹人姓名</label>
+        <input type="text" id="f-referrer" placeholder="介紹您參加的業務員" maxlength="20">
+      </div>
+      <div class="field">
+        <label>介紹人手機</label>
+        <input type="tel" id="f-referrer-phone" placeholder="09xx-xxxxxx" maxlength="20">
+      </div>
+    </div>
+
+    <div id="alert-box" class="alert"></div>
+
+    <button id="submit-btn" class="btn-submit" onclick="submitForm()">
+      📩 送出報名 — 自動取得授權碼
+    </button>
+  </div>
+
+  <!-- Success view -->
+  <div class="success-screen" id="success-view">
+    <div class="check">✅</div>
+    <h2>報名成功！</h2>
+    <p>您的授權碼已自動生成並寄送至您的信箱<br>請至信箱查收，並依說明啟用 APP。</p>
+    <div class="key-box" id="success-key">—</div>
+    <p id="success-email" style="font-size:13px;margin-bottom:8px;"></p>
+    <p style="font-size:13px;color:#7a8098;">若未收到信件，請檢查垃圾郵件匣</p>
+    <a class="btn-back" href="https://shinkong-insurance.github.io/insurance-exam-app/">🚀 立即開啟 APP</a>
+  </div>
+</div>
+
+<p class="footer">
+  <a href="https://shinkong-insurance.github.io/insurance-exam-app/">← 返回 APP</a>
+  &nbsp;｜&nbsp;
+  <a href="admin.html">後台管理</a>
+</p>
+
+<script>
+const EDGE_URL = 'https://kbclpucolchpwykqciyw.supabase.co/functions/v1/register-student';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtiY2xwdWNvbGNocHd5a3FjaXl3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1OTcwMjAsImV4cCI6MjA5MDE3MzAyMH0.VFgoJuWa6UjT0Jyo6tKFwoSku-Z2B-Y-gEjRxDFRt4Y';
+
+let submitted = false;
+
+async function submitForm() {
+  if (submitted) return;
+
+  const name   = document.getElementById('f-name').value.trim();
+  const email  = document.getElementById('f-email').value.trim();
+  const phone  = document.getElementById('f-phone').value.trim();
+  const region = document.getElementById('f-region').value.trim();
+  const unit   = document.getElementById('f-unit').value.trim();
+  const batch  = document.getElementById('f-batch').value.trim();
+  const ref    = document.getElementById('f-referrer').value.trim();
+  const refph  = document.getElementById('f-referrer-phone').value.trim();
+
+  const alertBox = document.getElementById('alert-box');
+  alertBox.className = 'alert';
+  alertBox.textContent = '';
+
+  if (!name)  { showError('請填寫姓名'); return; }
+  if (!email || !email.includes('@')) { showError('請填寫正確的信箱地址'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 處理中，請稍候…';
+  submitted = true;
+
+  try {
+    const resp = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+      body: JSON.stringify({
+        name, email, phone: phone || null,
+        unit_name: unit || null, region: region || null,
+        batch_name: batch || null,
+        referrer: ref || null, referrer_phone: refph || null,
+      }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || data.error) {
+      throw new Error(data.error || '伺服器錯誤，請稍後再試');
+    }
+
+    // Show success
+    document.getElementById('success-key').textContent = data.key_code;
+    document.getElementById('success-email').textContent = '授權碼已寄送至：' + email;
+    document.getElementById('form-view').style.display = 'none';
+    document.getElementById('success-view').style.display = 'block';
+
+  } catch (err) {
+    submitted = false;
+    btn.disabled = false;
+    btn.textContent = '📩 送出報名 — 自動取得授權碼';
+    showError(err.message || '送出失敗，請稍後再試');
+  }
+}
+
+function showError(msg) {
+  const box = document.getElementById('alert-box');
+  box.className = 'alert error';
+  box.textContent = '⚠️ ' + msg;
+}
+
+// Allow Enter to submit
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !submitted) submitForm();
+});
+</script>
+</body>
+</html>

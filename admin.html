@@ -171,6 +171,7 @@
                 <th class="hide-sm">區部</th>
                 <th class="hide-sm">單位</th>
                 <th>姓名</th>
+                <th class="hide-sm">手機</th>
                 <th class="hide-sm">信箱</th>
                 <th class="hide-sm">梯次</th>
                 <th>授權碼</th>
@@ -249,18 +250,35 @@
         <input type="text" id="f-name" placeholder="王小明">
       </div>
       <div>
-        <label>信箱</label>
-        <input type="email" id="f-email" placeholder="example@email.com">
+        <label>手機</label>
+        <input type="tel" id="f-phone" placeholder="09xx-xxxxxx">
       </div>
     </div>
     <div class="form-row-2">
       <div>
+        <label>信箱</label>
+        <input type="email" id="f-email" placeholder="example@email.com">
+      </div>
+      <div>
         <label>梯次名稱</label>
         <input type="text" id="f-batch-name" placeholder="2026第一梯次">
       </div>
+    </div>
+    <div class="form-row-2">
       <div>
         <label>授權到期日</label>
         <input type="date" id="f-expires-at">
+      </div>
+      <div></div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>介紹人</label>
+        <input type="text" id="f-referrer" placeholder="介紹人姓名">
+      </div>
+      <div>
+        <label>介紹人手機</label>
+        <input type="tel" id="f-referrer-phone" placeholder="09xx-xxxxxx">
       </div>
     </div>
     <div class="form-row">
@@ -549,6 +567,11 @@ function renderTable() {
     strong.textContent = u.name;
     tdName.appendChild(strong);
 
+    // 手機
+    const tdPhone = document.createElement('td');
+    tdPhone.className = 'hide-sm';
+    tdPhone.textContent = u.phone || '—';
+
     // 信箱
     const tdEmail = document.createElement('td');
     tdEmail.className = 'hide-sm';
@@ -634,7 +657,7 @@ function renderTable() {
     toggleBtn.onclick = () => toggleUser(u.id, !u.is_active);
     tdOps.appendChild(toggleBtn);
 
-    tr.append(tdRegion, tdUnit, tdName, tdEmail, tdBatch, tdKey, tdExp, tdBadge, tdSend, tdOps);
+    tr.append(tdRegion, tdUnit, tdName, tdPhone, tdEmail, tdBatch, tdKey, tdExp, tdBadge, tdSend, tdOps);
     return tr;
   });
 
@@ -701,7 +724,7 @@ async function sendLicenseEmail(studentId) {
 async function openAddUserModal() {
   document.getElementById('user-modal-title').textContent = '新增學員';
   document.getElementById('edit-user-id').value = '';
-  ['f-region','f-unit','f-name','f-email','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
+  ['f-region','f-unit','f-name','f-phone','f-email','f-batch-name','f-referrer','f-referrer-phone','f-notes'].forEach(id => document.getElementById(id).value = '');
   const d = new Date(); d.setMonth(d.getMonth() + 6);
   document.getElementById('f-expires-at').value = d.toISOString().substring(0,10);
   document.getElementById('user-modal-error').textContent = '';
@@ -714,29 +737,35 @@ async function openEditUserModal(id) {
   if (!u) return;
   document.getElementById('user-modal-title').textContent = '編輯學員';
   document.getElementById('edit-user-id').value    = u.id;
-  document.getElementById('f-region').value        = u.region || '';
-  document.getElementById('f-unit').value          = u.unit_name || '';
-  document.getElementById('f-name').value          = u.name || '';
-  document.getElementById('f-email').value         = u.email || '';
-  document.getElementById('f-batch-name').value    = u.batch_name || '';
-  document.getElementById('f-expires-at').value    = u.expires_at?.substring(0,10) || '';
-  document.getElementById('f-notes').value         = u.notes || '';
+  document.getElementById('f-region').value         = u.region || '';
+  document.getElementById('f-unit').value           = u.unit_name || '';
+  document.getElementById('f-name').value           = u.name || '';
+  document.getElementById('f-phone').value          = u.phone || '';
+  document.getElementById('f-email').value          = u.email || '';
+  document.getElementById('f-batch-name').value     = u.batch_name || '';
+  document.getElementById('f-expires-at').value     = u.expires_at?.substring(0,10) || '';
+  document.getElementById('f-referrer').value       = u.referrer || '';
+  document.getElementById('f-referrer-phone').value = u.referrer_phone || '';
+  document.getElementById('f-notes').value          = u.notes || '';
   document.getElementById('user-modal-error').textContent = '';
   await populateKeyDropdown(u.key_id);
   document.getElementById('user-modal').classList.add('open');
 }
 
 async function saveUser() {
-  const id      = document.getElementById('edit-user-id').value;
-  const region  = document.getElementById('f-region').value.trim();
-  const unit    = document.getElementById('f-unit').value.trim();
-  const name    = document.getElementById('f-name').value.trim();
-  const email   = document.getElementById('f-email').value.trim();
-  const batch   = document.getElementById('f-batch-name').value.trim();
-  const expires = document.getElementById('f-expires-at').value;
-  const notes   = document.getElementById('f-notes').value.trim();
-  const keySelId = document.getElementById('f-key-select').value;
-  const errEl   = document.getElementById('user-modal-error');
+  const id          = document.getElementById('edit-user-id').value;
+  const region      = document.getElementById('f-region').value.trim();
+  const unit        = document.getElementById('f-unit').value.trim();
+  const name        = document.getElementById('f-name').value.trim();
+  const phone       = document.getElementById('f-phone').value.trim();
+  const email       = document.getElementById('f-email').value.trim();
+  const batch       = document.getElementById('f-batch-name').value.trim();
+  const expires     = document.getElementById('f-expires-at').value;
+  const referrer    = document.getElementById('f-referrer').value.trim();
+  const referrerPh  = document.getElementById('f-referrer-phone').value.trim();
+  const notes       = document.getElementById('f-notes').value.trim();
+  const keySelId    = document.getElementById('f-key-select').value;
+  const errEl       = document.getElementById('user-modal-error');
 
   if (!name) { errEl.textContent = '請輸入姓名'; return; }
 
@@ -774,8 +803,11 @@ async function saveUser() {
     region: region || null,
     unit_name: unit || null,
     name,
+    phone: phone || null,
     email: email || null,
     batch_name: batch || null,
+    referrer: referrer || null,
+    referrer_phone: referrerPh || null,
     key_id: keyId,
     key_code: keyCode,
     expires_at: expiresAt || null,

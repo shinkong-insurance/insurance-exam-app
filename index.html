@@ -49,6 +49,49 @@
       animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Floating registration button ── */
+    #fab-register {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      z-index: 9999;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: system-ui, sans-serif;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(249,115,22,.45);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform .15s, box-shadow .15s;
+      letter-spacing: .3px;
+    }
+    #fab-register:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(249,115,22,.55);
+    }
+    #fab-register:active { transform: scale(.96); }
+
+    /* ── Disable text selection & print ── */
+    * {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    /* Allow input fields to still be selectable */
+    input, textarea, [contenteditable] {
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+    @media print {
+      body { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -57,11 +100,80 @@
     <span>保險考照 APP 載入中…</span>
   </div>
 
+  <!-- Floating registration button (shown after Flutter loads) -->
+  <a id="fab-register" href="/insurance-exam-app/register.html" style="display:none;">
+    📝 學員報名
+  </a>
+
+  <!-- Devtools-open overlay (hidden by default) -->
+  <div id="devtools-overlay" style="display:none;position:fixed;inset:0;z-index:99999;background:#0f1117;
+    align-items:center;justify-content:center;flex-direction:column;gap:16px;
+    font-family:system-ui;color:#f97316;">
+    <div style="font-size:48px;">🔒</div>
+    <div style="font-size:20px;font-weight:700;">內容保護中</div>
+    <div style="color:#7a8098;font-size:14px;">請關閉開發者工具後重新整理頁面</div>
+  </div>
+
   <script>
     window.addEventListener('flutter-first-frame', function () {
       const el = document.getElementById('loading');
       if (el) el.remove();
+      // Show registration FAB after app loads
+      const fab = document.getElementById('fab-register');
+      if (fab) fab.style.display = 'flex';
     });
+
+    // ── Security: disable right-click ──
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+
+    // ── Security: disable keyboard shortcuts for devtools & copy ──
+    document.addEventListener('keydown', function(e) {
+      // F12
+      if (e.key === 'F12') { e.preventDefault(); return false; }
+      // Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+Shift+C (devtools)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && ['I','J','C'].includes(e.key.toUpperCase())) {
+        e.preventDefault(); return false;
+      }
+      // Ctrl+U (view source)
+      if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === 'U') {
+        e.preventDefault(); return false;
+      }
+      // Ctrl+S (save page)
+      if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === 'S') {
+        e.preventDefault(); return false;
+      }
+      // Ctrl+P (print)
+      if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === 'P') {
+        e.preventDefault(); return false;
+      }
+      // Ctrl+A (select all — disable outside inputs)
+      if ((e.ctrlKey || e.metaKey) && e.key.toUpperCase() === 'A') {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+          e.preventDefault(); return false;
+        }
+      }
+    });
+
+    // ── Security: devtools open detection (window size heuristic) ──
+    (function() {
+      const THRESHOLD = 160;
+      const overlay = document.getElementById('devtools-overlay');
+      function checkDevTools() {
+        if (!overlay) return;
+        const widthDiff  = window.outerWidth  - window.innerWidth;
+        const heightDiff = window.outerHeight - window.innerHeight;
+        if (widthDiff > THRESHOLD || heightDiff > THRESHOLD) {
+          overlay.style.display = 'flex';
+        } else {
+          overlay.style.display = 'none';
+        }
+      }
+      setInterval(checkDevTools, 2000);
+    })();
   </script>
 
   <script src="flutter_bootstrap.js" async></script>
