@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/section.dart';
 import '../../providers/section_provider.dart';
+import '../../core/services/study_logger.dart';
 
 // ── Section image map provider ────────────────────────────────────────────────
 final sectionImagesProvider = FutureProvider<Map<int, String>>((ref) async {
@@ -30,6 +31,19 @@ class SectionReadingPage extends ConsumerStatefulWidget {
 class _SectionReadingPageState extends ConsumerState<SectionReadingPage> {
   double _fontSize = 16.0;
   bool _showToc = false;
+  final DateTime _enterTime = DateTime.now(); // 記錄進入時間
+
+  @override
+  void dispose() {
+    // 離開頁面時記錄閱讀時長
+    final seconds = DateTime.now().difference(_enterTime).inSeconds;
+    StudyLogger.chapterRead(
+      chapterId: widget.chapterId,
+      sectionId: widget.sectionId,
+      durationSeconds: seconds,
+    );
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

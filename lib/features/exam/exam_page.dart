@@ -6,6 +6,7 @@ import '../../models/question.dart';
 import '../../providers/question_provider.dart';
 import '../../providers/user_data_provider.dart';
 import '../../models/exam_record.dart';
+import '../../core/services/study_logger.dart';
 
 class ExamPage extends ConsumerStatefulWidget {
   final int count;
@@ -212,6 +213,16 @@ class _ExamPageState extends ConsumerState<ExamPage> {
       ),
     );
     ref.invalidate(examRecordsProvider);
+
+    // 記錄學習事件
+    final isMock = widget.paperName != null || widget.count >= 50;
+    StudyLogger.quizSession(
+      questionsTotal: _questions.length,
+      questionsCorrect: correct,
+      chapterId: widget.chapterId,
+      courseId: widget.courseId,
+      isMockExam: isMock,
+    );
 
     if (mounted) {
       context.pushReplacement('/exam-result', extra: {

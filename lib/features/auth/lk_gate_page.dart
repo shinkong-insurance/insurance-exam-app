@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/lk_auth_service.dart';
+import '../../core/services/study_logger.dart';
 
 class LkGatePage extends StatefulWidget {
   const LkGatePage({super.key});
@@ -57,6 +58,7 @@ class _LkGatePageState extends State<LkGatePage> {
 
     switch (res.result) {
       case LkLoginResult.success:
+        StudyLogger.login(res.keyCode ?? code); // 記錄登入事件
         context.go('/');
       case LkLoginResult.notFound:
         setState(() => _errorMsg = '找不到此授權碼，請確認後重試');
