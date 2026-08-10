@@ -154,8 +154,8 @@ class HomePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                // ── 模擬考卷（線上作答）────────────────────────
-                _SectionHeader(title: '模擬考卷', icon: Icons.article_outlined),
+                // ── 練習考卷（線上作答）────────────────────────
+                _SectionHeader(title: '練習考卷', icon: Icons.article_outlined),
                 const SizedBox(height: 10),
                 // 保險實務 A / B / C 卷
                 _FeatureCard(

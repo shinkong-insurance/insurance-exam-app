@@ -65,7 +65,7 @@ class _MockPaperPageState extends State<MockPaperPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('歷屆模擬考卷')),
+      appBar: AppBar(title: const Text('練習考卷')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
