@@ -29,6 +29,32 @@
       padding: 0;
       overflow: hidden;
     }
+    /* 使用手冊浮動按鈕 */
+    #guide-fab {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(255,255,255,0.12);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.22);
+      color: rgba(255,255,255,0.85);
+      border-radius: 28px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-family: 'Microsoft JhengHei', system-ui, sans-serif;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      transition: background 0.2s, opacity 0.3s;
+      white-space: nowrap;
+    }
+    #guide-fab:hover { background: rgba(255,255,255,0.22); color: #fff; }
     /* Loading indicator */
     #loading {
       display: flex;
@@ -52,6 +78,11 @@
   </style>
 </head>
 <body>
+  <!-- 使用手冊浮動按鈕（僅登入頁顯示） -->
+  <a id="guide-fab" href="student-guide.html" target="_blank">
+    📖 考生使用手冊
+  </a>
+
   <div id="loading">
     <div class="spinner"></div>
     <span>保險考照 APP 載入中…</span>
@@ -61,6 +92,19 @@
     window.addEventListener('flutter-first-frame', function () {
       const el = document.getElementById('loading');
       if (el) el.remove();
+    });
+
+    // 使用手冊按鈕：僅在登入頁（#/lk）顯示
+    function updateGuideFab() {
+      const fab = document.getElementById('guide-fab');
+      if (!fab) return;
+      const onLoginPage = location.hash === '#/lk' || location.hash === '' || location.hash === '#/';
+      fab.style.display = onLoginPage ? 'flex' : 'none';
+    }
+    window.addEventListener('hashchange', updateGuideFab);
+    window.addEventListener('flutter-first-frame', function() {
+      setTimeout(updateGuideFab, 500);
+      setInterval(updateGuideFab, 1000);
     });
   </script>
 
