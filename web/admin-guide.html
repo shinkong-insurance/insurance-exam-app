@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保險考照 APP — 後台管理使用手冊</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background: #f5f7fa; color: #333; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #4a148c, #6a1b9a); color: #fff; padding: 40px 32px 32px; }
+  header h1 { font-size: 26px; margin-bottom: 6px; }
+  header p { font-size: 14px; opacity: .85; }
+  .badge { display: inline-block; background: rgba(255,255,255,.2); border-radius: 20px; padding: 3px 12px; font-size: 12px; margin-top: 10px; }
+  main { max-width: 860px; margin: 32px auto; padding: 0 20px 60px; }
+  .card { background: #fff; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; box-shadow: 0 2px 10px rgba(0,0,0,.07); }
+  h2 { font-size: 18px; color: #6a1b9a; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #ede7f6; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 15px; font-weight: 700; color: #333; margin: 18px 0 8px; }
+  p, li { font-size: 14px; color: #555; margin-bottom: 6px; }
+  ol, ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .url-box { background: #f3e5f5; border-left: 4px solid #6a1b9a; border-radius: 6px; padding: 12px 16px; font-family: monospace; font-size: 13px; color: #4a148c; margin: 12px 0; word-break: break-all; }
+  .cred-box { background: #fff3e0; border-left: 4px solid #e65100; border-radius: 6px; padding: 14px 16px; font-size: 13px; color: #4e342e; margin: 12px 0; }
+  .cred-box strong { color: #bf360c; }
+  .step { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .step-num { background: #6a1b9a; color: #fff; border-radius: 50%; width: 26px; height: 26px; min-width: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .step-text { font-size: 14px; color: #444; }
+  .tag { display: inline-block; background: #ede7f6; color: #6a1b9a; border-radius: 4px; padding: 1px 8px; font-size: 12px; font-weight: 700; margin-right: 4px; }
+  .warn { background: #fff8e1; border-left: 4px solid #f9a825; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #5d4037; margin: 10px 0; }
+  .tip { background: #e8f5e9; border-left: 4px solid #43a047; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #1b5e20; margin: 10px 0; }
+  .danger { background: #ffebee; border-left: 4px solid #c62828; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #b71c1c; margin: 10px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #6a1b9a; color: #fff; padding: 8px 12px; text-align: left; }
+  td { border: 1px solid #dde; padding: 8px 12px; }
+  tr:nth-child(even) td { background: #f9f5ff; }
+  code { background: #f3e5f5; padding: 1px 6px; border-radius: 3px; font-size: 12px; color: #6a1b9a; }
+  footer { text-align: center; font-size: 12px; color: #999; margin-top: 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙️ 保險考照 APP — 後台管理使用手冊</h1>
+  <p>講師 / 管理員專用 — 新光人壽南區訓練中心</p>
+  <span class="badge">機密文件 · 請勿外流 · 2026 年版</span>
+</header>
+<main>
+
+  <!-- 登入 -->
+  <div class="card">
+    <h2>🔐 後台登入</h2>
+    <div class="url-box">https://shinkong-insurance.github.io/insurance-exam-app/admin.html</div>
+    <div class="cred-box">
+      <strong>帳號：</strong>admin@shinkong.edu.tw<br>
+      <strong>密碼：</strong>請洽詢壽險證照負責講師
+    </div>
+    <div class="danger">⚠️ 請勿將帳密分享給考生。後台可查看所有學員資料並管理授權碼。</div>
+  </div>
+
+  <!-- 後台功能總覽 -->
+  <div class="card">
+    <h2>📊 後台功能總覽</h2>
+    <table>
+      <tr><th>頁籤</th><th>功能</th></tr>
+      <tr><td><span class="tag">學員管理</span></td><td>新增、查詢、管理學員資料；發送授權碼 Email</td></tr>
+      <tr><td><span class="tag">授權碼管理</span></td><td>產生 / 查詢授權碼、查看使用狀態與到期日</td></tr>
+      <tr><td><span class="tag">統計報表</span></td><td>查看學員人數、授權碼使用狀況等統計</td></tr>
+    </table>
+  </div>
+
+  <!-- 學員管理 -->
+  <div class="card">
+    <h2>👥 學員管理</h2>
+    <h3>新增學員</h3>
+    <div class="step"><div class="step-num">1</div><div class="step-text">點選「學員管理」頁籤 → 點選「新增學員」</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">填入：姓名、Email、手機（選填）、介紹人（選填）、梯次</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">點選「儲存」，學員資料寫入資料庫</div></div>
+
+    <h3>查詢學員</h3>
+    <p>頁面上方提供搜尋框，可依姓名、Email 或梯次快速篩選。</p>
+
+    <h3>發送授權碼</h3>
+    <div class="step"><div class="step-num">1</div><div class="step-text">在學員列表找到目標學員，點選「發送授權碼」</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">系統自動寄出 Email，內含授權碼與登入網址</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">發送狀態欄位更新為「已發送」</div></div>
+    <div class="tip">💡 發送前請確認學員 Email 正確，系統不支援重發至不同信箱。</div>
+
+    <h3>學員欄位說明</h3>
+    <table>
+      <tr><th>欄位</th><th>說明</th></tr>
+      <tr><td>姓名</td><td>學員中文姓名</td></tr>
+      <tr><td>Email</td><td>接收授權碼的信箱（必填）</td></tr>
+      <tr><td>手機</td><td>聯絡電話（選填）</td></tr>
+      <tr><td>介紹人</td><td>介紹此學員的業務員姓名（選填）</td></tr>
+      <tr><td>梯次</td><td>訓練梯次名稱，如「2026 第三梯」</td></tr>
+      <tr><td>發送狀態</td><td>未發送 / 已發送 / 發送失敗</td></tr>
+    </table>
+  </div>
+
+  <!-- 授權碼管理 -->
+  <div class="card">
+    <h2>🔑 授權碼管理</h2>
+    <h3>產生授權碼</h3>
+    <div class="step"><div class="step-num">1</div><div class="step-text">點選「授權碼管理」頁籤 → 點選「產生授權碼」</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">設定：數量、有效天數、適用梯次（選填）</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">點選「產生」，系統批量建立格式為 <code>LK-XXXX-XXXX</code> 的授權碼</div></div>
+
+    <h3>授權碼狀態說明</h3>
+    <table>
+      <tr><th>狀態</th><th>說明</th></tr>
+      <tr><td>未使用</td><td>尚未被任何學員輸入啟用</td></tr>
+      <tr><td>已使用</td><td>學員已輸入並啟用，顯示啟用時間與到期日</td></tr>
+      <tr><td>已到期</td><td>超過有效期限，學員無法再使用</td></tr>
+    </table>
+
+    <h3>常見操作</h3>
+    <ul>
+      <li>可匯出授權碼清單（CSV），方便整批發送</li>
+      <li>已使用的授權碼不可重新指派</li>
+      <li>可手動停用特定授權碼（防止濫用）</li>
+    </ul>
+    <div class="warn">⚠️ 授權碼一旦被學員啟用即開始計算天數，請在發送給學員前再產生，避免提前消耗。</div>
+  </div>
+
+  <!-- 學員自助報名 -->
+  <div class="card">
+    <h2>📝 學員自助報名頁</h2>
+    <div class="url-box">https://shinkong-insurance.github.io/insurance-exam-app/register.html</div>
+    <p>學員可透過此頁面自行填寫基本資料完成報名，資料會直接寫入後台資料庫。</p>
+    <h3>流程</h3>
+    <div class="step"><div class="step-num">1</div><div class="step-text">將報名網址提供給學員（可製成 QR Code）</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">學員填寫姓名、Email、手機、梯次後送出</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">後台「學員管理」頁籤即可看到報名資料</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-text">確認資料後，手動發送授權碼給學員</div></div>
+  </div>
+
+  <!-- APP 網址 -->
+  <div class="card">
+    <h2>🔗 重要網址一覽</h2>
+    <table>
+      <tr><th>用途</th><th>網址</th></tr>
+      <tr><td>考生登入入口</td><td><code>https://shinkong-insurance.github.io/insurance-exam-app/#/lk</code></td></tr>
+      <tr><td>APP 主頁</td><td><code>https://shinkong-insurance.github.io/insurance-exam-app/</code></td></tr>
+      <tr><td>學員自助報名</td><td><code>https://shinkong-insurance.github.io/insurance-exam-app/register.html</code></td></tr>
+      <tr><td>後台管理</td><td><code>https://shinkong-insurance.github.io/insurance-exam-app/admin.html</code></td></tr>
+      <tr><td>成績查詢（公會）</td><td><code>https://www.lia-roc.org.tw</code></td></tr>
+    </table>
+  </div>
+
+  <!-- 操作建議 -->
+  <div class="card">
+    <h2>📌 管理建議</h2>
+    <ul>
+      <li>建議每梯次建立獨立的梯次標籤，方便日後分梯查詢</li>
+      <li>開課前 3 天產生授權碼並發送，給學員足夠時間安裝測試</li>
+      <li>授權有效期建議設為 <strong>60 天</strong>（含考試準備 + 成績查詢緩衝）</li>
+      <li>定期匯出授權碼使用報表，確認未啟用的授權碼是否需要補發</li>
+      <li>如學員反映無法登入，先確認：①授權碼是否正確 ②是否已到期 ③網路是否正常</li>
+    </ul>
+    <div class="danger">🔒 後台帳密請定期更換，並避免在公用電腦登入後台。</div>
+  </div>
+
+</main>
+<footer>新光人壽南區訓練中心 · 後台管理使用手冊 · 機密文件 · 2026 年版</footer>
+</body>
+</html>
