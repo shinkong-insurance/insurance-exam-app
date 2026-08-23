@@ -5,6 +5,7 @@ import '../../providers/user_data_provider.dart';
 import '../../providers/question_provider.dart';
 import '../../providers/section_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/open_url.dart';
 
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
@@ -86,6 +87,9 @@ class HomePage extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
+                // 使用手冊入口
+                const _ManualBanner(),
+                const SizedBox(height: 12),
                 // 授權 Banner
                 if (auth != null && auth.isLoggedIn) ...[
                   _AuthBanner(auth: auth),
@@ -357,6 +361,66 @@ class _FeatureCard extends StatelessWidget {
                 color: enabled ? null : Colors.grey[300]),
         onTap: onTap,
         enabled: enabled,
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────
+// 使用手冊快速入口
+// ──────────────────────────────────────────────
+class _ManualBanner extends StatelessWidget {
+  const _ManualBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withOpacity(0.12),
+            cs.tertiary.withOpacity(0.10),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.primary.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: cs.primary.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.menu_book_outlined,
+                color: cs.primary, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('考生使用手冊',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
+                SizedBox(height: 2),
+                Text('APP 功能介紹 · 操作說明 · 考試資訊',
+                    style: TextStyle(fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => openUrl('student-guide.html'),
+            icon: const Icon(Icons.open_in_new, size: 15),
+            label: const Text('查看', style: TextStyle(fontSize: 13)),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+          ),
+        ],
       ),
     );
   }
