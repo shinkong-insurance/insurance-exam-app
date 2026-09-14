@@ -374,6 +374,17 @@ class _ExamPageState extends ConsumerState<ExamPage> {
               ),
             ),
           ),
+          const SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: 6),
+              child: Text(
+                '版權所有 翻印必究',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+          ),
         ],
       ),
     );
