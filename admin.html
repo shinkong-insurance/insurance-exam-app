@@ -185,12 +185,13 @@
                 <th class="hide-sm">區部</th>
                 <th class="hide-sm">單位</th>
                 <th>姓名</th>
-                <th class="hide-sm">信箱</th>
-                <th class="hide-sm">梯次</th>
+                <th class="hide-sm">電話</th>
+                <th class="hide-sm">考試日期</th>
+                <th class="hide-sm">推薦人</th>
+                <th class="hide-sm">推薦單位</th>
                 <th>授權碼</th>
                 <th class="hide-sm">到期日</th>
                 <th>狀態</th>
-                <th>寄送</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -276,6 +277,30 @@
         <label>授權到期日</label>
         <input type="date" id="f-expires-at">
       </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>考試日期</label>
+        <input type="date" id="f-exam-date">
+      </div>
+      <div>
+        <label>推薦人單位</label>
+        <input type="text" id="f-referrer-unit" placeholder="選填">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div>
+        <label>推薦人姓名</label>
+        <input type="text" id="f-referrer" placeholder="選填">
+      </div>
+      <div>
+        <label>推薦人電話</label>
+        <input type="text" id="f-referrer-phone" placeholder="選填">
+      </div>
+    </div>
+    <div class="form-row">
+      <label>推薦人員編</label>
+      <input type="text" id="f-referrer-id" placeholder="選填">
     </div>
     <div class="form-row">
       <label>指定授權碼 <span style="color:var(--muted)">(留空則從可用授權碼中自動分配)</span></label>
@@ -479,7 +504,7 @@ async function loadUsers() {
   const emptyRow = document.createElement('tr');
   emptyRow.className = 'empty-row';
   const emptyCell = document.createElement('td');
-  emptyCell.setAttribute('colspan', '10');
+  emptyCell.setAttribute('colspan', '11');
   emptyCell.textContent = '載入中…';
   emptyRow.appendChild(emptyCell);
   tbody.replaceChildren(emptyRow);
@@ -489,7 +514,7 @@ async function loadUsers() {
     const errRow = document.createElement('tr');
     errRow.className = 'empty-row';
     const errCell = document.createElement('td');
-    errCell.setAttribute('colspan', '10');
+    errCell.setAttribute('colspan', '11');
     errCell.style.color = 'var(--danger)';
     errCell.textContent = '載入失敗：' + error.message;
     errRow.appendChild(errCell);
@@ -511,6 +536,9 @@ function renderTable() {
   const q = document.getElementById('search-box').value.toLowerCase();
   const filtered = allStudents.filter(u =>
     u.name?.toLowerCase().includes(q) ||
+    u.phone?.toLowerCase().includes(q) ||
+    u.referrer?.toLowerCase().includes(q) ||
+    u.referrer_unit?.toLowerCase().includes(q) ||
     u.region?.toLowerCase().includes(q) ||
     u.unit_name?.toLowerCase().includes(q) ||
     u.email?.toLowerCase().includes(q) ||
@@ -521,7 +549,7 @@ function renderTable() {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'empty-row';
     const emptyCell = document.createElement('td');
-    emptyCell.setAttribute('colspan', '10');
+    emptyCell.setAttribute('colspan', '11');
     emptyCell.textContent = '查無資料';
     emptyRow.appendChild(emptyCell);
     tbody.replaceChildren(emptyRow);
@@ -541,39 +569,39 @@ function renderTable() {
     else if (daysLeft <= 7){ badgeText = '剩 ' + daysLeft + ' 天'; badgeClass = 'badge-warn'; }
     else                   { badgeText = '有效'; badgeClass = 'badge-green'; }
 
-    const sentText = u.email_sent_at
-      ? new Date(u.email_sent_at).toLocaleDateString('zh-TW')
-      : '—';
-
     const tr = document.createElement('tr');
 
-    // 區部
     const tdRegion = document.createElement('td');
     tdRegion.className = 'hide-sm';
     tdRegion.textContent = u.region || '—';
 
-    // 單位
     const tdUnit = document.createElement('td');
     tdUnit.className = 'hide-sm';
     tdUnit.textContent = u.unit_name || '—';
 
-    // 姓名
     const tdName = document.createElement('td');
     const strong = document.createElement('strong');
     strong.textContent = u.name;
     tdName.appendChild(strong);
 
-    // 信箱
-    const tdEmail = document.createElement('td');
-    tdEmail.className = 'hide-sm';
-    tdEmail.textContent = u.email || '—';
+    const tdPhone = document.createElement('td');
+    tdPhone.className = 'hide-sm';
+    tdPhone.textContent = u.phone || '—';
 
-    // 梯次
-    const tdBatch = document.createElement('td');
-    tdBatch.className = 'hide-sm';
-    tdBatch.textContent = u.batch_name || '—';
+    const tdExamDate = document.createElement('td');
+    tdExamDate.className = 'hide-sm';
+    tdExamDate.textContent = u.exam_date || '—';
 
-    // 授權碼
+    const tdReferrer = document.createElement('td');
+    tdReferrer.className = 'hide-sm';
+    tdReferrer.textContent = u.referrer
+      ? (u.referrer + (u.referrer_id ? '（' + u.referrer_id + '）' : ''))
+      : '—';
+
+    const tdReferrerUnit = document.createElement('td');
+    tdReferrerUnit.className = 'hide-sm';
+    tdReferrerUnit.textContent = u.referrer_unit || '—';
+
     const tdKey = document.createElement('td');
     if (u.key_code) {
       const span = document.createElement('span');
@@ -586,32 +614,16 @@ function renderTable() {
       tdKey.textContent = '—';
     }
 
-    // 到期日
     const tdExp = document.createElement('td');
     tdExp.className = 'hide-sm';
     tdExp.textContent = u.expires_at?.substring(0,10) || '—';
 
-    // 狀態 badge
     const tdBadge = document.createElement('td');
     const badge = document.createElement('span');
     badge.className = 'badge ' + badgeClass;
     badge.textContent = badgeText;
     tdBadge.appendChild(badge);
 
-    // 寄送
-    const tdSend = document.createElement('td');
-    if (u.email && u.key_code) {
-      const sendBtn = document.createElement('button');
-      sendBtn.className = 'btn btn-info btn-sm';
-      sendBtn.textContent = u.email_sent_at ? '重寄' : '寄送';
-      sendBtn.title = u.email_sent_at ? ('上次寄送：' + sentText) : '寄授權碼至信箱';
-      sendBtn.onclick = () => sendLicenseEmail(u.id);
-      tdSend.appendChild(sendBtn);
-    } else {
-      tdSend.textContent = '—';
-    }
-
-    // 操作
     const tdOps = document.createElement('td');
 
     const editBtn = document.createElement('button');
@@ -627,7 +639,23 @@ function renderTable() {
     toggleBtn.onclick = () => toggleUser(u.id, !u.is_active);
     tdOps.appendChild(toggleBtn);
 
-    tr.append(tdRegion, tdUnit, tdName, tdEmail, tdBatch, tdKey, tdExp, tdBadge, tdSend, tdOps);
+    if (u.email && u.key_code) {
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'btn btn-info btn-sm';
+      sendBtn.style.marginLeft = '4px';
+      sendBtn.textContent = u.email_sent_at ? '重寄' : '寄送';
+      sendBtn.onclick = () => sendLicenseEmail(u.id);
+      tdOps.appendChild(sendBtn);
+    }
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-danger btn-sm';
+    deleteBtn.style.marginLeft = '4px';
+    deleteBtn.textContent = '刪除';
+    deleteBtn.onclick = () => deleteUser(u.id);
+    tdOps.appendChild(deleteBtn);
+
+    tr.append(tdRegion, tdUnit, tdName, tdPhone, tdExamDate, tdReferrer, tdReferrerUnit, tdKey, tdExp, tdBadge, tdOps);
     return tr;
   });
 
@@ -676,7 +704,9 @@ async function sendLicenseEmail(studentId) {
 async function openAddUserModal() {
   document.getElementById('user-modal-title').textContent = '新增學員';
   document.getElementById('edit-user-id').value = '';
-  ['f-region','f-unit','f-name','f-email','f-batch-name','f-notes'].forEach(id => document.getElementById(id).value = '');
+  ['f-region','f-unit','f-name','f-email','f-batch-name','f-notes',
+   'f-exam-date','f-referrer-unit','f-referrer','f-referrer-phone','f-referrer-id']
+    .forEach(id => document.getElementById(id).value = '');
   const d = new Date(); d.setMonth(d.getMonth() + 6);
   document.getElementById('f-expires-at').value = d.toISOString().substring(0,10);
   document.getElementById('user-modal-error').textContent = '';
@@ -696,6 +726,11 @@ async function openEditUserModal(id) {
   document.getElementById('f-batch-name').value    = u.batch_name || '';
   document.getElementById('f-expires-at').value    = u.expires_at?.substring(0,10) || '';
   document.getElementById('f-notes').value         = u.notes || '';
+  document.getElementById('f-exam-date').value      = u.exam_date || '';
+  document.getElementById('f-referrer-unit').value  = u.referrer_unit || '';
+  document.getElementById('f-referrer').value       = u.referrer || '';
+  document.getElementById('f-referrer-phone').value = u.referrer_phone || '';
+  document.getElementById('f-referrer-id').value    = u.referrer_id || '';
   document.getElementById('user-modal-error').textContent = '';
   await populateKeyDropdown(u.key_id);
   document.getElementById('user-modal').classList.add('open');
@@ -710,6 +745,11 @@ async function saveUser() {
   const batch   = document.getElementById('f-batch-name').value.trim();
   const expires = document.getElementById('f-expires-at').value;
   const notes   = document.getElementById('f-notes').value.trim();
+  const examDate      = document.getElementById('f-exam-date').value;
+  const referrerUnit  = document.getElementById('f-referrer-unit').value.trim();
+  const referrer      = document.getElementById('f-referrer').value.trim();
+  const referrerPhone = document.getElementById('f-referrer-phone').value.trim();
+  const referrerId    = document.getElementById('f-referrer-id').value.trim();
   const keySelId = document.getElementById('f-key-select').value;
   const errEl   = document.getElementById('user-modal-error');
 
@@ -751,6 +791,11 @@ async function saveUser() {
     name,
     email: email || null,
     batch_name: batch || null,
+    exam_date: examDate || null,
+    referrer: referrer || null,
+    referrer_phone: referrerPhone || null,
+    referrer_unit: referrerUnit || null,
+    referrer_id: referrerId || null,
     key_id: keyId,
     key_code: keyCode,
     expires_at: expiresAt || null,
