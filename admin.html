@@ -164,9 +164,29 @@
     <div class="content">
       <div class="stats" id="stats-row">
         <div class="stat-card"><div class="num" id="s-total">—</div><div class="lbl">總學員數</div></div>
+        <div class="stat-card"><div class="num" id="s-today">—</div><div class="lbl">今日新增</div></div>
+        <div class="stat-card"><div class="num" id="s-expiring">—</div><div class="lbl">即將過期（7天內）</div></div>
         <div class="stat-card"><div class="num" id="s-active">—</div><div class="lbl">已分配授權碼</div></div>
-        <div class="stat-card"><div class="num" id="s-expired">—</div><div class="lbl">未分配授權碼</div></div>
-        <div class="stat-card"><div class="num" id="s-logins">—</div><div class="lbl">已寄送郵件</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>依推薦人／推薦單位統計</h2></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>推薦人</th><th>推薦單位</th><th>學員數</th></tr></thead>
+            <tbody id="referrer-stats-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h2>依考試日期統計</h2></div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>考試日期</th><th>學員數</th></tr></thead>
+            <tbody id="examdate-stats-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="panel">
@@ -526,10 +546,59 @@ async function loadUsers() {
 }
 
 function updateUserStats() {
-  document.getElementById('s-total').textContent   = allStudents.length;
-  document.getElementById('s-active').textContent  = allStudents.filter(s => s.key_code).length;
-  document.getElementById('s-expired').textContent = allStudents.filter(s => !s.key_code).length;
-  document.getElementById('s-logins').textContent  = allStudents.filter(s => s.email_sent_at).length;
+  const now = new Date();
+  const todayStr = now.toISOString().substring(0, 10);
+
+  document.getElementById('s-total').textContent = allStudents.length;
+  document.getElementById('s-today').textContent =
+    allStudents.filter(s => (s.created_at || '').substring(0, 10) === todayStr).length;
+  document.getElementById('s-expiring').textContent = allStudents.filter(s => {
+    if (!s.expires_at) return false;
+    const exp = new Date(s.expires_at);
+    const daysLeft = Math.ceil((exp - now) / 86400000);
+    return daysLeft >= 0 && daysLeft <= 7;
+  }).length;
+  document.getElementById('s-active').textContent = allStudents.filter(s => s.key_code).length;
+
+  renderReferrerStats();
+  renderExamDateStats();
+}
+
+function renderReferrerStats() {
+  const groups = {};
+  allStudents.forEach(s => {
+    const key = (s.referrer || '（未填寫）') + '｜' + (s.referrer_unit || '（未填寫）');
+    groups[key] = (groups[key] || 0) + 1;
+  });
+
+  const tbody = document.getElementById('referrer-stats-tbody');
+  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">尚無資料</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(([key, count]) => {
+    const [referrer, unit] = key.split('｜');
+    return `<tr><td>${esc(referrer)}</td><td>${esc(unit)}</td><td>${count}</td></tr>`;
+  }).join('');
+}
+
+function renderExamDateStats() {
+  const groups = {};
+  allStudents.forEach(s => {
+    const key = s.exam_date || '（未填寫）';
+    groups[key] = (groups[key] || 0) + 1;
+  });
+
+  const tbody = document.getElementById('examdate-stats-tbody');
+  const entries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
+  if (!entries.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="2">尚無資料</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(([date, count]) =>
+    `<tr><td>${esc(date)}</td><td>${count}</td></tr>`
+  ).join('');
 }
 
 function renderTable() {
