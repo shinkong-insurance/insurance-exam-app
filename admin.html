@@ -668,6 +668,29 @@ async function toggleUser(id, active) {
   loadUsers();
 }
 
+async function deleteUser(id) {
+  const u = allStudents.find(x => x.id === id);
+  if (!u) return;
+  if (!confirm('確定要刪除學員「' + u.name + '」嗎？此動作無法復原。')) return;
+
+  if (u.key_id) {
+    await sb.from('key_sessions').delete().eq('key_id', u.key_id);
+  }
+  const { error } = await sb.from('students').delete().eq('id', id);
+  if (error) { alert('刪除失敗：' + error.message); return; }
+
+  // Only the deleted student's own key: if no other student references it, remove it too.
+  if (u.key_id) {
+    const { data: others } = await sb.from('students').select('id').eq('key_id', u.key_id).limit(1);
+    if (!others || others.length === 0) {
+      await sb.from('license_keys').delete().eq('id', u.key_id);
+    }
+  }
+
+  loadUsers();
+  loadKeys();
+}
+
 async function sendLicenseEmail(studentId) {
   const s = allStudents.find(x => x.id === studentId);
   if (!s) return;
@@ -879,6 +902,7 @@ function renderKeysTable() {
           ? `<button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',false)">停用</button>`
           : `<button class="btn btn-outline btn-sm" style="margin-left:4px" onclick="toggleKey('${k.id}',true)">啟用</button>`
         }
+        <button class="btn btn-danger btn-sm" style="margin-left:4px" onclick="deleteKey('${k.id}')">刪除</button>
       </td>
     </tr>`;
   }).join('');
@@ -956,6 +980,24 @@ async function saveKey() {
 async function toggleKey(id, active) {
   const { error } = await sb.from('license_keys').update({ is_active: active }).eq('id', id);
   if (error) { alert('操作失敗：' + error.message); return; }
+  loadKeys();
+}
+
+async function deleteKey(id) {
+  const k = allKeys.find(x => x.id === id);
+  if (!k) return;
+
+  const { data: linked } = await sb.from('students').select('id').eq('key_id', id).limit(1);
+  if (linked && linked.length > 0) {
+    alert('此授權碼仍有學員使用中，請先刪除或改派該學員後再刪除授權碼。');
+    return;
+  }
+
+  if (!confirm('確定要刪除授權碼「' + k.key_code + '」嗎？此動作無法復原。')) return;
+
+  await sb.from('key_sessions').delete().eq('key_id', id);
+  const { error } = await sb.from('license_keys').delete().eq('id', id);
+  if (error) { alert('刪除失敗：' + error.message); return; }
   loadKeys();
 }
 
