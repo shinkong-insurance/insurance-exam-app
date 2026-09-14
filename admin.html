@@ -193,7 +193,7 @@
         <div class="panel-header">
           <h2>學員管理 <span style="color:var(--muted);font-size:12px;font-weight:400">（授權碼 + 信箱 對應）</span></h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 區部 / 單位" oninput="renderTable()">
+            <input class="search-input" id="search-box" placeholder="🔍 搜尋姓名 / 電話 / 推薦人 / 區部 / 單位" oninput="renderTable()">
             <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">＋ 新增學員</button>
             <button class="btn btn-outline btn-sm" onclick="loadUsers()">重整</button>
           </div>
@@ -287,6 +287,10 @@
         <label>信箱</label>
         <input type="email" id="f-email" placeholder="example@email.com">
       </div>
+    </div>
+    <div class="form-row">
+      <label>電話</label>
+      <input type="text" id="f-phone" placeholder="09xx-xxxxxx">
     </div>
     <div class="form-row-2">
       <div>
@@ -547,7 +551,9 @@ async function loadUsers() {
 
 function updateUserStats() {
   const now = new Date();
-  const todayStr = now.toISOString().substring(0, 10);
+  const todayStr = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
 
   document.getElementById('s-total').textContent = allStudents.length;
   document.getElementById('s-today').textContent =
@@ -565,22 +571,24 @@ function updateUserStats() {
 }
 
 function renderReferrerStats() {
-  const groups = {};
+  const groups = new Map();
   allStudents.forEach(s => {
-    const key = (s.referrer || '（未填寫）') + '｜' + (s.referrer_unit || '（未填寫）');
-    groups[key] = (groups[key] || 0) + 1;
+    const referrer = s.referrer || '（未填寫）';
+    const unit = s.referrer_unit || '（未填寫）';
+    const key = referrer + ' ' + unit; // null char never appears in real input; safe internal-only key
+    if (!groups.has(key)) groups.set(key, { referrer, unit, count: 0 });
+    groups.get(key).count++;
   });
 
   const tbody = document.getElementById('referrer-stats-tbody');
-  const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+  const entries = [...groups.values()].sort((a, b) => b.count - a.count);
   if (!entries.length) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="3">尚無資料</td></tr>';
     return;
   }
-  tbody.innerHTML = entries.map(([key, count]) => {
-    const [referrer, unit] = key.split('｜');
-    return `<tr><td>${esc(referrer)}</td><td>${esc(unit)}</td><td>${count}</td></tr>`;
-  }).join('');
+  tbody.innerHTML = entries.map(e =>
+    `<tr><td>${esc(e.referrer)}</td><td>${esc(e.unit)}</td><td>${e.count}</td></tr>`
+  ).join('');
 }
 
 function renderExamDateStats() {
@@ -740,7 +748,7 @@ async function toggleUser(id, active) {
 async function deleteUser(id) {
   const u = allStudents.find(x => x.id === id);
   if (!u) return;
-  if (!confirm('確定要刪除學員「' + u.name + '」嗎？此動作無法復原。')) return;
+  if (!confirm('確定要刪除學員「' + u.name + '」嗎？此動作無法復原。\n注意：若該學員裝置上已登入，其存取權限不會立即失效，仍可能使用至效期屆滿。')) return;
 
   if (u.key_id) {
     await sb.from('key_sessions').delete().eq('key_id', u.key_id);
@@ -796,7 +804,7 @@ async function sendLicenseEmail(studentId) {
 async function openAddUserModal() {
   document.getElementById('user-modal-title').textContent = '新增學員';
   document.getElementById('edit-user-id').value = '';
-  ['f-region','f-unit','f-name','f-email','f-batch-name','f-notes',
+  ['f-region','f-unit','f-name','f-email','f-phone','f-batch-name','f-notes',
    'f-exam-date','f-referrer-unit','f-referrer','f-referrer-phone','f-referrer-id']
     .forEach(id => document.getElementById(id).value = '');
   const d = new Date(); d.setMonth(d.getMonth() + 6);
@@ -815,6 +823,7 @@ async function openEditUserModal(id) {
   document.getElementById('f-unit').value          = u.unit_name || '';
   document.getElementById('f-name').value          = u.name || '';
   document.getElementById('f-email').value         = u.email || '';
+  document.getElementById('f-phone').value         = u.phone || '';
   document.getElementById('f-batch-name').value    = u.batch_name || '';
   document.getElementById('f-expires-at').value    = u.expires_at?.substring(0,10) || '';
   document.getElementById('f-notes').value         = u.notes || '';
@@ -834,6 +843,7 @@ async function saveUser() {
   const unit    = document.getElementById('f-unit').value.trim();
   const name    = document.getElementById('f-name').value.trim();
   const email   = document.getElementById('f-email').value.trim();
+  const phone   = document.getElementById('f-phone').value.trim();
   const batch   = document.getElementById('f-batch-name').value.trim();
   const expires = document.getElementById('f-expires-at').value;
   const notes   = document.getElementById('f-notes').value.trim();
@@ -882,6 +892,7 @@ async function saveUser() {
     unit_name: unit || null,
     name,
     email: email || null,
+    phone: phone || null,
     batch_name: batch || null,
     exam_date: examDate || null,
     referrer: referrer || null,

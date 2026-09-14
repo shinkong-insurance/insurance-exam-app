@@ -36,7 +36,7 @@ Deno.serve(async (req: Request) => {
   }
 
   const name = String(body.name ?? '').trim()
-  const phone = String(body.phone ?? '').trim()
+  const phone = String(body.phone ?? '').trim().replace(/\D/g, '')
   const examDate = String(body.exam_date ?? '').trim()
   const referrerName = body.referrer_name ? String(body.referrer_name).trim() : null
   const referrerPhone = body.referrer_phone ? String(body.referrer_phone).trim() : null
@@ -46,6 +46,7 @@ Deno.serve(async (req: Request) => {
   if (!name) return jsonResponse({ error: '請填寫姓名' }, 400)
   if (!phone) return jsonResponse({ error: '請填寫電話' }, 400)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(examDate)) return jsonResponse({ error: '考試日期格式錯誤' }, 400)
+  if (Number.isNaN(Date.parse(examDate))) return jsonResponse({ error: '考試日期格式錯誤' }, 400)
 
   const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -53,16 +54,18 @@ Deno.serve(async (req: Request) => {
   expiresAtDate.setDate(expiresAtDate.getDate() + 60)
   const expiresAtIso = expiresAtDate.toISOString()
 
-  const { data: existing, error: findErr } = await sb
+  const { data: existingRows, error: findErr } = await sb
     .from('students')
     .select('id, key_id, key_code')
     .eq('phone', phone)
-    .maybeSingle()
+    .order('created_at', { ascending: false })
+    .limit(1)
 
   if (findErr) {
     console.error('auto-register-student: findErr', findErr)
     return jsonResponse({ error: '系統忙碌，請稍後再試' }, 500)
   }
+  const existing = existingRows?.[0] ?? null
 
   // Generates and inserts a fresh, unique license_keys row; retries on the
   // (rare) key_code collision.

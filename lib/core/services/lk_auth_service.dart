@@ -168,6 +168,10 @@ class LkAuthService {
         batchName: 'AUTO',
         expiresAt: expiresAt,
       );
+    } on FunctionException catch (e) {
+      final d = e.details;
+      final msg = (d is Map && d['error'] != null) ? d['error'].toString() : '註冊失敗，請稍後再試';
+      return LkLoginResponse(result: LkLoginResult.error, error: msg);
     } catch (e) {
       return LkLoginResponse(result: LkLoginResult.error, error: e.toString());
     }
