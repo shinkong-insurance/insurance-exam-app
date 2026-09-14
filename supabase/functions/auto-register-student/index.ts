@@ -59,7 +59,10 @@ Deno.serve(async (req: Request) => {
     .eq('phone', phone)
     .maybeSingle()
 
-  if (findErr) return jsonResponse({ error: findErr.message }, 500)
+  if (findErr) {
+    console.error('auto-register-student: findErr', findErr)
+    return jsonResponse({ error: '系統忙碌，請稍後再試' }, 500)
+  }
 
   // Generates and inserts a fresh, unique license_keys row; retries on the
   // (rare) key_code collision.
@@ -78,7 +81,10 @@ Deno.serve(async (req: Request) => {
         .select('id, key_code')
         .single()
       if (!insKeyErr) return { id: inserted.id, keyCode: inserted.key_code }
-      if (!insKeyErr.message?.includes('23505')) return { error: insKeyErr.message }
+      if (insKeyErr.code !== '23505') {
+        console.error('auto-register-student: insKeyErr (createLicenseKey)', insKeyErr)
+        return { error: '系統忙碌，請稍後再試' }
+      }
     }
     return { error: '授權碼產生失敗，請重試' }
   }
@@ -100,7 +106,10 @@ Deno.serve(async (req: Request) => {
         .from('license_keys')
         .update({ expires_at: expiresAtIso, is_active: true })
         .eq('id', keyId)
-      if (updKeyErr) return jsonResponse({ error: updKeyErr.message }, 500)
+      if (updKeyErr) {
+        console.error('auto-register-student: updKeyErr', updKeyErr)
+        return jsonResponse({ error: '系統忙碌，請稍後再試' }, 500)
+      }
     }
 
     const { error: updStudentErr } = await sb
@@ -118,7 +127,10 @@ Deno.serve(async (req: Request) => {
         is_active: true,
       })
       .eq('id', existing.id)
-    if (updStudentErr) return jsonResponse({ error: updStudentErr.message }, 500)
+    if (updStudentErr) {
+      console.error('auto-register-student: updStudentErr', updStudentErr)
+      return jsonResponse({ error: '系統忙碌，請稍後再試' }, 500)
+    }
 
     return jsonResponse({ key_id: keyId, key_code: keyCode, expires_at: expiresAtIso })
   }
@@ -140,7 +152,10 @@ Deno.serve(async (req: Request) => {
     expires_at: expiresAtIso,
     is_active: true,
   })
-  if (insStudentErr) return jsonResponse({ error: insStudentErr.message }, 500)
+  if (insStudentErr) {
+    console.error('auto-register-student: insStudentErr', insStudentErr)
+    return jsonResponse({ error: '系統忙碌，請稍後再試' }, 500)
+  }
 
   return jsonResponse({ key_id: keyId, key_code: keyCode, expires_at: expiresAtIso })
 })
