@@ -42,8 +42,8 @@ Future<String?> _authGuard(BuildContext context, GoRouterState state) async {
   final lkSession = await LkAuthService.getSession();
   if (lkSession != null) return null;
 
-  // 兩者皆無 → 導向身分證登入頁（預設）
-  return '/license';
+  // 兩者皆無 → 導向自動授權報名頁（身分證登入已停用）
+  return '/lk';
 }
 
 final appRouter = GoRouter(

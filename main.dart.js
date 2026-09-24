@@ -30837,7 +30837,7 @@ break}s=4
 return A.n(A.ue(),$async$aay)
 case 4:if(d!=null){q=null
 s=1
-break}q="/license"
+break}q="/lk"
 s=1
 break
 case 1:return A.t(q,r)}})
@@ -107819,7 +107819,7 @@ p===$&&A.a()
 s=2
 return A.n(p.gkm().oF(B.Y1,B.kj),$async$EI)
 case 2:p=q.c
-if(p!=null)A.fc(p).jY(0,"/license",null)
+if(p!=null)A.fc(p).jY(0,"/lk",null)
 return A.t(null,r)}})
 return A.u($async$EI,r)},
 gahS(){var s=this.d
@@ -108319,7 +108319,7 @@ var $async$$0=A.w(function(a,b){if(a===1)return A.r(b,r)
 for(;;)switch(s){case 0:s=2
 return A.n(A.qY(),$async$$0)
 case 2:p=q.a
-if(p.e!=null)A.fc(p).jY(0,"/license",null)
+if(p.e!=null)A.fc(p).jY(0,"/lk",null)
 return A.t(null,r)}})
 return A.u($async$$0,r)},
 $S:9}
