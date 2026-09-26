@@ -55,6 +55,11 @@
   .badge-red   { background: rgba(239,68,68,.15); color: var(--danger); }
   .badge-warn  { background: rgba(245,158,11,.15); color: var(--warn); }
   .badge-info  { background: rgba(59,130,246,.15); color: var(--info); }
+  /* 考試日期檢核：只提示，不擋學員 */
+  .date-warn { color: var(--warn); font-weight: 600; cursor: help; }
+  .date-bad  { color: var(--danger); font-weight: 600; cursor: help; }
+  .date-past { color: var(--muted); }
+  .date-legend { font-size: 12px; color: var(--muted); margin: 0 0 8px; line-height: 1.7; }
 
   /* ── Forms ── */
   .form-row { margin-bottom: 14px; }
@@ -181,6 +186,7 @@
 
       <div class="panel">
         <div class="panel-header"><h2>依考試日期統計</h2></div>
+        <p class="date-legend" style="padding:10px 16px 0">顏色說明：<span class="date-warn">橘色</span>＝考試日期與報名同一天（可能沒改預設值）或距報名超過 180 天；<span class="date-bad">紅色</span>＝考試日期早於報名日；<span class="date-past">灰色</span>＝已考完。滑鼠移到日期上可看原因。</p>
         <div style="overflow-x:auto">
           <table>
             <thead><tr><th>考試日期</th><th>學員數</th></tr></thead>
@@ -591,12 +597,34 @@ function renderReferrerStats() {
   ).join('');
 }
 
+// ── 考試日期檢核（台灣時間）：只做顏色提示 ──
+function twDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return new Date(d.getTime() + 8 * 3600000).toISOString().substring(0, 10);
+}
+function examDateCheck(u) {
+  const ex = (u.exam_date || '').substring(0, 10);
+  if (!ex) return null;
+  const signup = twDate(u.created_at);
+  const today = twDate(new Date().toISOString());
+  if (signup && ex < signup) return { cls: 'date-bad', tip: '考試日期早於報名日（' + signup + '），可能填錯' };
+  if (signup && ex === signup) return { cls: 'date-warn', tip: '考試日期與報名日相同，可能沒改預設值' };
+  if (signup && (new Date(ex) - new Date(signup)) / 86400000 > 180) return { cls: 'date-warn', tip: '考試日期距報名超過 180 天，請確認' };
+  if (ex < today) return { cls: 'date-past', tip: '已考完' };
+  return null;
+}
+
 function renderExamDateStats() {
-  const groups = {};
+  const groups = {}, flagged = {};
   allStudents.forEach(s => {
     const key = s.exam_date || '（未填寫）';
     groups[key] = (groups[key] || 0) + 1;
+    const c = examDateCheck(s);
+    if (c && c.cls !== 'date-past') flagged[key] = (flagged[key] || 0) + 1;
   });
+  const today = twDate(new Date().toISOString());
 
   const tbody = document.getElementById('examdate-stats-tbody');
   const entries = Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]));
@@ -604,9 +632,13 @@ function renderExamDateStats() {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="2">尚無資料</td></tr>';
     return;
   }
-  tbody.innerHTML = entries.map(([date, count]) =>
-    `<tr><td>${esc(date)}</td><td>${count}</td></tr>`
-  ).join('');
+  tbody.innerHTML = entries.map(([date, count]) => {
+    const f = flagged[date] || 0;
+    const past = /^\d{4}-\d{2}-\d{2}/.test(date) && date.substring(0, 10) < today;
+    const dateHtml = past ? `<span class="date-past">${esc(date)}（已考）</span>` : esc(date);
+    const note = f ? ` <span class="date-warn" title="日期可能誤填，請看下方學員列表的橘/紅色日期">（其中 ${f} 筆待確認）</span>` : '';
+    return `<tr><td>${dateHtml}</td><td>${count}${note}</td></tr>`;
+  }).join('');
 }
 
 function renderTable() {
@@ -668,6 +700,8 @@ function renderTable() {
     const tdExamDate = document.createElement('td');
     tdExamDate.className = 'hide-sm';
     tdExamDate.textContent = u.exam_date || '—';
+    const dc = examDateCheck(u);
+    if (dc) { tdExamDate.classList.add(dc.cls); tdExamDate.title = dc.tip; }
 
     const tdReferrer = document.createElement('td');
     tdReferrer.className = 'hide-sm';
