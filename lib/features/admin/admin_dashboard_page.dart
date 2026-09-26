@@ -122,7 +122,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
   Future<void> _signOut() async {
     await Supabase.instance.client.auth.signOut();
-    if (mounted) context.go('/license');
+    if (mounted) context.go('/lk');
   }
 
   // ── Stats ──────────────────────────────────────

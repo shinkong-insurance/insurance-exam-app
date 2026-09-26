@@ -49,7 +49,7 @@ class LicenseExpiredPage extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: () async {
                     await WebAuthService.clearSession();
-                    if (context.mounted) context.go('/license');
+                    if (context.mounted) context.go('/lk');
                   },
                   icon: const Icon(Icons.logout, color: Colors.white54),
                   label: const Text('重新驗證身份',
