@@ -3,6 +3,7 @@
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'cloud_sync_service.dart';
 
 // ── 驗證結果 ──────────────────────────────────
 enum LkLoginResult { success, notFound, expired, maxUsed, disabled, error }
@@ -52,69 +53,78 @@ class LkAuthService {
     final code = rawCode.trim().toUpperCase();
 
     try {
-      // 1. 查詢授權碼
-      final res = await _sb
-          .from('license_keys')
-          .select('id, key_code, batch_name, max_uses, used_count, expires_at, is_active')
-          .eq('key_code', code)
-          .maybeSingle();
-
-      if (res == null) return const LkLoginResponse(result: LkLoginResult.notFound);
-
-      // 2. 狀態檢查
-      if (res['is_active'] == false) {
-        return const LkLoginResponse(result: LkLoginResult.disabled);
-      }
-
-      final expiresAt = DateTime.parse(res['expires_at'] as String);
-      if (expiresAt.isBefore(DateTime.now())) {
-        return LkLoginResponse(
-          result: LkLoginResult.expired,
-          expiresAt: expiresAt,
-        );
-      }
-
-      final maxUses = (res['max_uses'] as int?) ?? 1;
-      final usedCount = (res['used_count'] as int?) ?? 0;
-      final keyId = res['id'] as String;
+      // 伺服器端驗證（lk_login RPC）：查授權碼、檢查狀態/到期/裝置名額、記錄裝置 session。
+      // 學員端不再直接讀 license_keys / key_sessions（2026-11-25 資安修補）。
       final deviceId = await getDeviceId();
+      final raw = await _sb.rpc('lk_login', params: {
+        'p_code': code,
+        'p_device': deviceId,
+      });
+      final res = Map<String, dynamic>.from(raw as Map);
 
-      // 3. max_uses 檢查（0 = 無限；每裝置獨立計算，同裝置再次登入不佔用名額）
-      if (maxUses > 0) {
-        // 查看此裝置是否已用過此授權碼
-        final sessionRes = await _sb
-            .from('key_sessions')
-            .select('id')
-            .eq('key_id', keyId)
-            .eq('device_id', deviceId)
-            .maybeSingle();
-
-        final isNewDevice = sessionRes == null;
-        if (isNewDevice && usedCount >= maxUses) {
+      switch (res['result']) {
+        case 'not_found':
+          return const LkLoginResponse(result: LkLoginResult.notFound);
+        case 'disabled':
+          return const LkLoginResponse(result: LkLoginResult.disabled);
+        case 'expired':
+          final exp = res['expires_at'] as String?;
+          return LkLoginResponse(
+            result: LkLoginResult.expired,
+            expiresAt: exp == null ? null : DateTime.parse(exp),
+          );
+        case 'max_used':
           return const LkLoginResponse(result: LkLoginResult.maxUsed);
-        }
+        case 'success':
+          break;
+        default:
+          return LkLoginResponse(
+              result: LkLoginResult.error, error: '${res['result']}');
       }
 
-      // 4. upsert session + 更新 used_count
-      await _upsertSession(keyId, deviceId, maxUses > 0);
+      final keyId = res['id'] as String;
+      final keyCode = res['key_code'] as String;
+      final expiresAt = DateTime.parse(res['expires_at'] as String);
 
-      // 5. 儲存 session 到 SharedPreferences
+      // 儲存 session 到 SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kLkKeyId, keyId);
-      await prefs.setString(_kLkKeyCode, res['key_code'] as String);
+      await prefs.setString(_kLkKeyCode, keyCode);
       await prefs.setString(_kLkBatchName, (res['batch_name'] as String?) ?? '');
       await prefs.setString(_kLkExpiresAt, res['expires_at'] as String);
       await prefs.setBool(_kLkLoggedIn, true);
+      applyRequestKey(keyId);
+      // 登入後立刻啟動雲端同步（原本只在開網頁時檢查一次，剛登入的第一次使用
+      // 錯題／收藏不會上傳，要重新整理才會同步）
+      await CloudSyncService.init();
 
       return LkLoginResponse(
         result: LkLoginResult.success,
         keyId: keyId,
-        keyCode: res['key_code'] as String,
+        keyCode: keyCode,
         batchName: res['batch_name'] as String?,
         expiresAt: expiresAt,
       );
     } catch (e) {
       return LkLoginResponse(result: LkLoginResult.error, error: e.toString());
+    }
+  }
+
+  // ── 請求標頭 x-lk-key ─────────────────────────
+  // 資料庫 RLS 依這個標頭判斷「目前登入的授權碼」，只允許存取自己的錯題／收藏／
+  // 進度、只能新增自己的作答紀錄。只加在資料庫(REST)請求，不加在 Edge Function。
+  static const lkKeyHeader = 'x-lk-key';
+
+  static void applyRequestKey(String? keyId) {
+    try {
+      final h = _sb.rest.headers;
+      if (keyId == null || keyId.isEmpty) {
+        h.remove(lkKeyHeader);
+      } else {
+        h[lkKeyHeader] = keyId;
+      }
+    } catch (_) {
+      // Supabase 尚未初始化（例如測試環境）時忽略
     }
   }
 
@@ -160,6 +170,10 @@ class LkAuthService {
       await prefs.setString(_kLkBatchName, 'AUTO');
       await prefs.setString(_kLkExpiresAt, expiresAt.toIso8601String());
       await prefs.setBool(_kLkLoggedIn, true);
+      applyRequestKey(keyId);
+      // 登入後立刻啟動雲端同步（原本只在開網頁時檢查一次，剛登入的第一次使用
+      // 錯題／收藏不會上傳，要重新整理才會同步）
+      await CloudSyncService.init();
 
       return LkLoginResponse(
         result: LkLoginResult.success,
@@ -177,46 +191,22 @@ class LkAuthService {
     }
   }
 
-  // ── upsert key_sessions 並更新 used_count ────
-  static Future<void> _upsertSession(String keyId, String deviceId, bool trackUses) async {
-    // 先確認是否已有 session
-    final existing = await _sb
-        .from('key_sessions')
-        .select('id, login_count')
-        .eq('key_id', keyId)
-        .eq('device_id', deviceId)
-        .maybeSingle();
-
-    if (existing == null) {
-      // 新裝置
-      await _sb.from('key_sessions').insert({
-        'key_id': keyId,
-        'device_id': deviceId,
-        'login_count': 1,
-      });
-      // 遞增 used_count
-      if (trackUses) {
-        await _sb.rpc('increment_key_used_count', params: {'k_id': keyId});
-      }
-    } else {
-      // 已有裝置 → 只更新 login_count 和 last_used_at
-      await _sb.from('key_sessions').update({
-        'login_count': ((existing['login_count'] as int?) ?? 0) + 1,
-        'last_used_at': DateTime.now().toIso8601String(),
-      }).eq('key_id', keyId).eq('device_id', deviceId);
-    }
-  }
-
   // ── 讀取已儲存的 session ──────────────────────
   static Future<LkSession?> getSession() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_kLkLoggedIn) != true) return null;
+    if (prefs.getBool(_kLkLoggedIn) != true) {
+      applyRequestKey(null);
+      return null;
+    }
 
     final keyId     = prefs.getString(_kLkKeyId);
     final keyCode   = prefs.getString(_kLkKeyCode);
     final batchName = prefs.getString(_kLkBatchName);
     final expiresStr = prefs.getString(_kLkExpiresAt);
-    if (keyId == null || expiresStr == null) return null;
+    if (keyId == null || expiresStr == null) {
+      applyRequestKey(null);
+      return null;
+    }
 
     final expiresAt = DateTime.parse(expiresStr);
     if (expiresAt.isBefore(DateTime.now())) {
@@ -225,6 +215,7 @@ class LkAuthService {
       return null;
     }
 
+    applyRequestKey(keyId);
     return LkSession(
       keyId: keyId,
       keyCode: keyCode ?? '',
@@ -236,6 +227,7 @@ class LkAuthService {
 
   // ── 登出 ──────────────────────────────────────
   static Future<void> logout() async {
+    applyRequestKey(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kLkKeyId);
     await prefs.remove(_kLkKeyCode);
